@@ -33,3 +33,6 @@ Maps/
 # IDEs
 .vscode/
 .idea/
+
+bin/
+obj/
