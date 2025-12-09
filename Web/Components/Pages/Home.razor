@@ -1,7 +1,254 @@
 ﻿@page "/"
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>StarCraft II Bot Controller</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>StarCraft II Bot Controller</h1>
 
-Welcome to your new app.
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Connection Status</h5>
+        <p>
+            Status: 
+            @if (isConnected)
+            {
+                <span class="text-success">Connected</span>
+            }
+            else
+            {
+                <span class="text-danger">Disconnected</span>
+            }
+        </p>
+        <button class="btn btn-primary" @onclick="ConnectToSC2" disabled="@isConnected">Connect to SC2 (127.0.0.1:5000)</button>
+    </div>
+</div>
+
+@if (isConnected)
+{
+    if (currentStatus == Status.Launched || currentStatus == Status.Ended)
+    {
+        <CreateGame OnGameCreated="HandleGameCreated" />
+    }
+    else if (currentStatus == Status.InitGame)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Game Created</h5>
+                <p>Waiting to join...</p>
+                <button class="btn btn-warning" @onclick="JoinGame">Join Game</button>
+            </div>
+        </div>
+    }
+    else if (currentStatus == Status.InGame)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">In Game</h5>
+                <button class="btn btn-danger" @onclick="LeaveGame">Leave Game</button>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Logs</h5>
+            <pre class="bg-light p-2" style="max-height: 300px; overflow-y: auto;">@logs</pre>
+        </div>
+    </div>
+
+    @if (observation != null)
+    {
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Game State</h5>
+                <p>Game Loop: @observation.Observation.GameLoop</p>
+                <p>Minerals: @observation.Observation.PlayerCommon.Minerals</p>
+                <p>Vespene: @observation.Observation.PlayerCommon.Vespene</p>
+                <p>Supply: @observation.Observation.PlayerCommon.FoodUsed / @observation.Observation.PlayerCommon.FoodCap</p>
+            </div>
+        </div>
+    }
+
+    <RequestHistory />
+}
+
+@code {
+    private bool isConnected = false;
+    private Status currentStatus = Status.Unknown;
+    private string logs = "";
+    private ResponseObservation? observation;
+    private CancellationTokenSource? _gameLoopCts;
+
+    private async Task ConnectToSC2()
+    {
+        try
+        {
+            Log("Connecting to SC2...");
+            await SC2Client.ConnectAsync();
+            isConnected = SC2Client.IsConnected;
+            Log("Connected successfully.");
+
+            // Check current status
+            currentStatus = await SC2Client.PingAsync();
+            Log($"Current SC2 Status: {currentStatus}");
+
+            if (currentStatus == Status.InGame)
+            {
+                _ = StartGameLoop();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Connection failed: {ex.Message}");
+        }
+    }
+
+    private async Task HandleGameCreated()
+    {
+        Log("Game created successfully.");
+        currentStatus = await SC2Client.PingAsync();
+    }
+
+    private async Task JoinGame()
+    {
+        try
+        {
+            Log("Joining game...");
+            
+            var request = new Request();
+            request.JoinGame = new RequestJoinGame
+            {
+                Race = Race.Terran,
+                Options = new InterfaceOptions
+                {
+                    Raw = true,
+                    Score = true
+                }
+            };
+
+            var response = await SC2Client.SendRequestAsync(request);
+            currentStatus = response.Status;
+            
+            if (response.Status == Status.InGame)
+            {
+                Log("Joined game successfully!");
+                _ = StartGameLoop();
+            }
+            else
+            {
+                Log($"Join game response status: {response.Status}");
+                 if (response.Error.Count > 0)
+                {
+                    Log($"Errors: {string.Join(", ", response.Error)}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Error joining game: {ex.Message}");
+        }
+    }
+
+    private async Task LeaveGame()
+    {
+        try
+        {
+            _gameLoopCts?.Cancel();
+            Log("Leaving game...");
+            var request = new Request { LeaveGame = new RequestLeaveGame() };
+            var response = await SC2Client.SendRequestAsync(request);
+            currentStatus = response.Status;
+            Log("Left game.");
+            observation = null;
+            
+            // Refresh status after leaving
+            currentStatus = await SC2Client.PingAsync();
+        }
+        catch (Exception ex)
+        {
+            Log($"Error leaving game: {ex.Message}");
+        }
+    }
+
+    private async Task StartGameLoop()
+    {
+        _gameLoopCts = new CancellationTokenSource();
+        var token = _gameLoopCts.Token;
+
+        Log("Starting Game Loop...");
+
+        try
+        {
+            while (!token.IsCancellationRequested && isConnected)
+            {
+                // 1. Get Observation
+                observation = await SC2Client.GetObservationAsync();
+                await InvokeAsync(StateHasChanged);
+
+                // 2. Run Bot Logic
+                await OnGameLoop(observation);
+
+                // 3. Wait a bit (since we are in Realtime mode)
+                // In 'Step' mode, you would send RequestStep here instead of Delay.
+                await Task.Delay(100, token); 
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Loop stopped
+        }
+        catch (Exception ex)
+        {
+            Log($"Game Loop Error: {ex.Message}");
+        }
+    }
+
+    private async Task OnGameLoop(ResponseObservation obs)
+    {
+        // This code runs every time we get a new observation
+        var loop = obs.Observation.GameLoop;
+
+        // Example: Log every 100 game loops (approx 5 seconds in realtime)
+        if (loop % 100 == 0)
+        {
+            Log($"[Bot] Game Loop {loop}: Minerals: {obs.Observation.PlayerCommon.Minerals}");
+            
+            // TODO: Add your bot logic here!
+            // e.g. if (minerals > 50) TrainWorker();
+        }
+        
+        await Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _gameLoopCts?.Cancel();
+    }
+
+    private void Log(string message)
+    {
+        logs += $"{DateTime.Now:HH:mm:ss} - {message}\n";
+        StateHasChanged();
+    }
+
+    private async Task ListMaps()
+    {
+        try
+        {
+            Log("Listing available maps...");
+            var maps = await SC2Client.GetAvailableMapsAsync();
+            Log($"Found {maps.BattlenetMapNames.Count} local maps.");
+            foreach (var map in maps.BattlenetMapNames)
+            {
+                Log($" - {map}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Error listing maps: {ex.Message}");
+        }
+    }
+}

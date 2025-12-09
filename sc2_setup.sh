@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p wget unzip uv python3
+#!nix-shell -i bash -p wget unzip
 
 set -e
 
@@ -8,57 +8,44 @@ set -e
 SC2_ZIP_URL="http://blzdistsc2-a.akamaihd.net/Linux/SC2.4.10.zip"
 SC2_ZIP="SC2.4.10.zip"
 
-if [ ! -d "$HOME/StarCraftII" ]; then
+if [ ! -d "./StarCraftII" ]; then
     echo "Downloading StarCraft II headless build..."
-    wget -O "$SC2_ZIP" "$SC2_ZIP_URL"
+    if [ ! -f "$SC2_ZIP" ]; then
+        wget -O "$SC2_ZIP" "$SC2_ZIP_URL"
+    fi
 
     echo "Extracting..."
     echo "password is iagreetotheeula"
-    unzip -o "$SC2_ZIP" -d ~
+    unzip -o "$SC2_ZIP" -d .
     rm "$SC2_ZIP"
 else
-    echo "StarCraft II already installed at ~/StarCraftII"
+    echo "StarCraft II already installed at ./StarCraftII"
 fi
 
 # 2. (Optional) Download map packs (e.g. ladder maps)
 MAPS_URL="http://blzdistsc2-a.akamaihd.net/MapPacks/Melee.zip"
 MAPS_ZIP="Melee.zip"
 
-if [ ! -d "$HOME/StarCraftII/Maps/Melee" ]; then
+if [ ! -d "./StarCraftII/Maps/Melee" ]; then
     echo "Downloading default map pack..."
     wget -O "$MAPS_ZIP" "$MAPS_URL"
-    unzip -o "$MAPS_ZIP" -d ~/StarCraftII/Maps
+    unzip -o "$MAPS_ZIP" -d ./StarCraftII/Maps
     rm "$MAPS_ZIP"
 else
     echo "Maps already installed."
 fi
 
-# 3. Install a Python bot environment (using uv)
-echo "Setting up Python bot environment with uv..."
-uv venv
-source .venv/bin/activate
-uv pip install --upgrade .
+# 3. Launch SC2 Server directly
+echo "Launching StarCraft II Headless Server..."
+SC2_BINARY=$(find ./StarCraftII/Versions -name "SC2_x64" | head -n 1)
 
-# Patch pysc2 for Python 3.11+ compatibility (random.shuffle removed 'random' arg)
-echo "Patching pysc2 for Python 3.13 compatibility..."
-find .venv -name "colors.py" -path "*/pysc2/lib/*" -exec sed -i 's/random.shuffle(palette, lambda: 0.5)/random.shuffle(palette)/g' {} +
+if [ -z "$SC2_BINARY" ]; then
+    echo "Error: SC2_x64 binary not found."
+    exit 1
+fi
 
-# 4. Set environment variable for SC2 path
-# Note: This only affects the current shell or needs to be added to user's profile manually
-# because nix-shell script runs in a subshell.
-export SC2PATH=~/StarCraftII
+# Ensure executable permissions
+chmod +x "$SC2_BINARY"
 
-echo "----------------------------------------------------------------"
-echo "SC2 + maps + PySC2 installed."
-echo ""
-echo "To run a sample bot manually:"
-echo "  source .venv/bin/activate"
-echo "  python3 launch_sc2.py"
-
-echo "----------------------------------------------------------------"
-echo "Launching SC2 graphically with bot interface..."
-export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-python3 launch_sc2.py
-echo "  export SC2PATH=~/StarCraftII"
-echo "  python -m pysc2.bin.agent --map Simple64"
-echo "----------------------------------------------------------------"
+echo "Starting SC2 on port 5000..."
+"$SC2_BINARY" -listen 127.0.0.1 -port 5000 -displayMode 0 -dataDir "$(pwd)/StarCraftII" -tempDir "/tmp/sc2_temp"

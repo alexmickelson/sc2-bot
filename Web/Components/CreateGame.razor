@@ -1,0 +1,206 @@
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Create Game</h5>
+
+        @if (isLoadingMaps)
+        {
+            <p>Loading maps...</p>
+        }
+        else
+        {
+            <div class="mb-3">
+                <label class="form-label">Select Map</label>
+                <select class="form-select" @bind="selectedMap">
+                    <option value="">-- Select a Map --</option>
+                    @foreach (var map in battleNetMaps)
+                    {
+                        <option value="@map">@map (BattleNet)</option>
+                    }
+                    @foreach (var map in localMaps)
+                    {
+                        <option value="@map">@map (Local)</option>
+                    }
+                </select>
+            </div>
+            
+            <hr />
+            <h6>Game Settings</h6>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">My Race</label>
+                    <select class="form-select" @bind="myRace">
+                        <option value="@Race.Terran">Terran</option>
+                        <option value="@Race.Zerg">Zerg</option>
+                        <option value="@Race.Protoss">Protoss</option>
+                        <option value="@Race.Random">Random</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" @bind="realtime">
+                        <label class="form-check-label">Realtime Mode</label>
+                    </div>
+                </div>
+            </div>
+
+            <hr />
+            <h6>Opponent Settings</h6>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Opponent Type</label>
+                    <select class="form-select" @bind="opponentType">
+                        <option value="@PlayerType.Computer">Computer</option>
+                        <option value="@PlayerType.Participant">Human (Multiplayer)</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (opponentType == PlayerType.Computer)
+            {
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Opponent Race</label>
+                        <select class="form-select" @bind="opponentRace">
+                            <option value="@Race.Terran">Terran</option>
+                            <option value="@Race.Zerg">Zerg</option>
+                            <option value="@Race.Protoss">Protoss</option>
+                            <option value="@Race.Random">Random</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Difficulty</label>
+                        <select class="form-select" @bind="opponentDifficulty">
+                            <option value="@Difficulty.VeryEasy">Very Easy</option>
+                            <option value="@Difficulty.Easy">Easy</option>
+                            <option value="@Difficulty.Medium">Medium</option>
+                            <option value="@Difficulty.MediumHard">Medium Hard</option>
+                            <option value="@Difficulty.Hard">Hard</option>
+                            <option value="@Difficulty.Harder">Harder</option>
+                            <option value="@Difficulty.VeryHard">Very Hard</option>
+                            <option value="@Difficulty.CheatVision">Cheat Vision</option>
+                            <option value="@Difficulty.CheatMoney">Cheat Money</option>
+                            <option value="@Difficulty.CheatInsane">Cheat Insane</option>
+                        </select>
+                    </div>
+                </div>
+            }
+
+            <button class="btn btn-success" @onclick="HandleCreateGame" disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
+        }
+        
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-2">@errorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnGameCreated { get; set; }
+
+    private List<string> localMaps = new();
+    private List<string> battleNetMaps = new();
+    private string selectedMap = "";
+    private bool isLoadingMaps = false;
+    private string errorMessage = "";
+
+    // Game Settings
+    private Race myRace = Race.Terran;
+    private bool realtime = true;
+    
+    // Opponent Settings
+    private PlayerType opponentType = PlayerType.Computer;
+    private Race opponentRace = Race.Zerg;
+    private Difficulty opponentDifficulty = Difficulty.VeryEasy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMaps();
+    }
+
+    private async Task LoadMaps()
+    {
+        try 
+        {
+            isLoadingMaps = true;
+            var maps = await SC2Client.GetAvailableMapsAsync();
+            localMaps = maps.LocalMapPaths.ToList();
+            battleNetMaps = maps.BattlenetMapNames.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load maps: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingMaps = false;
+        }
+    }
+
+    private async Task HandleCreateGame()
+    {
+        errorMessage = "";
+        try
+        {
+            var request = new Request();
+            request.CreateGame = new RequestCreateGame();
+            
+            if (selectedMap.EndsWith(".SC2Map"))
+            {
+                 request.CreateGame.LocalMap = new LocalMap { MapPath = selectedMap };
+            }
+            else
+            {
+                 request.CreateGame.BattlenetMapName = selectedMap;
+            }
+            
+            // Add players
+            // Player 1 (Us)
+            request.CreateGame.PlayerSetup.Add(new PlayerSetup 
+            { 
+                Type = PlayerType.Participant, 
+                Race = myRace 
+            });
+
+            // Player 2 (Opponent)
+            var opponent = new PlayerSetup 
+            { 
+                Type = opponentType, 
+                Race = opponentRace 
+            };
+            
+            if (opponentType == PlayerType.Computer)
+            {
+                opponent.Difficulty = opponentDifficulty;
+            }
+            
+            request.CreateGame.PlayerSetup.Add(opponent);
+
+            request.CreateGame.Realtime = realtime;
+
+            var response = await SC2Client.SendRequestAsync(request);
+            
+            if (response.Status == Status.InitGame)
+            {
+                await OnGameCreated.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = $"Game creation failed. Status: {response.Status}";
+                if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
+                if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
+                if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating game: {ex.Message}";
+        }
+    }
+}
