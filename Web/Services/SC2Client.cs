@@ -10,7 +10,8 @@ public class SC2Client : IDisposable
   private ClientWebSocket? _webSocket;
   private readonly string _url;
   private CancellationTokenSource? _cts;
-  
+  private readonly SemaphoreSlim _lock = new(1, 1);
+
   // Store request/response pairs
   public List<RequestResponsePair> History { get; } = new();
   public event System.Action? OnHistoryUpdated;
@@ -33,31 +34,68 @@ public class SC2Client : IDisposable
 
   public async Task<Response> SendRequestAsync(Request request)
   {
-    if (_webSocket == null || _webSocket.State != WebSocketState.Open)
+    await _lock.WaitAsync();
+    try
     {
-      throw new InvalidOperationException("Not connected to SC2.");
-    }
+      if (_webSocket == null || _webSocket.State != WebSocketState.Open)
+      {
+        throw new InvalidOperationException("Not connected to SC2.");
+      }
 
-    var bytes = request.ToByteArray();
-    await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Binary, true, _cts!.Token);
+      var bytes = request.ToByteArray();
+      await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Binary, true, _cts!.Token);
 
-    using var ms = new MemoryStream();
-    var buffer = new byte[1024 * 32]; 
-    WebSocketReceiveResult result;
-    do
-    {
+      using var ms = new MemoryStream();
+      var buffer = new byte[1024 * 32];
+      WebSocketReceiveResult result;
+      do
+      {
         result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
+        if (result.MessageType == WebSocketMessageType.Close)
+        {
+          await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+          throw new WebSocketException("WebSocket closed by server.");
+        }
         ms.Write(buffer, 0, result.Count);
-    } while (!result.EndOfMessage);
+      } while (!result.EndOfMessage);
 
-    ms.Seek(0, SeekOrigin.Begin);
-    var response = Response.Parser.ParseFrom(ms);
+      ms.Seek(0, SeekOrigin.Begin);
+      var response = Response.Parser.ParseFrom(ms);
 
-    // Log to history
-    History.Add(new RequestResponsePair(request, response, DateTime.Now));
-    OnHistoryUpdated?.Invoke();
+      // Log to history
+      History.Add(new RequestResponsePair(request, response, DateTime.Now));
+      OnHistoryUpdated?.Invoke();
 
-    return response;
+      return response;
+    }
+    finally
+    {
+      _lock.Release();
+    }
+  }
+
+  public async Task MoveCameraAsync(int x, int y)
+  {
+    var request = new Request
+    {
+      Action = new RequestAction
+      {
+        Actions =
+        {
+          new SC2APIProtocol.Action
+          {
+            ActionFeatureLayer = new ActionSpatial
+            {
+              CameraMove = new ActionSpatialCameraMove
+              {
+                CenterMinimap = new PointI { X = x, Y = y }
+              }
+            }
+          }
+        }
+      }
+    };
+    await SendRequestAsync(request);
   }
 
   public async Task<Status> PingAsync()
@@ -86,6 +124,7 @@ public class SC2Client : IDisposable
   {
     _cts?.Cancel();
     _webSocket?.Dispose();
+    _lock.Dispose();
   }
 }
 

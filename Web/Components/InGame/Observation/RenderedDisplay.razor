@@ -1,33 +1,42 @@
 @using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
 
 <div class="card mt-3">
     <div class="card-body">
         <h5 class="card-title">Rendered Interface</h5>
         @if (Observation != null && Observation.RenderData != null)
         {
-            <div class="row">
-                <div class="col-md-6">
-                    <h6>Map</h6>
-                    @if (Observation.RenderData.Map != null)
-                    {
-                        <ImageDataDisplay Data="@Observation.RenderData.Map" />
-                    }
-                    else
-                    {
-                        <p>No Map Render Data</p>
-                    }
-                </div>
-                <div class="col-md-6">
-                    <h6>Minimap</h6>
-                    @if (Observation.RenderData.Minimap != null)
-                    {
-                        <ImageDataDisplay Data="@Observation.RenderData.Minimap" />
-                    }
-                    else
-                    {
-                        <p>No Minimap Render Data</p>
-                    }
-                </div>
+            <div>
+                <h6>Map</h6>
+                @if (Observation.RenderData.Map != null)
+                {
+                    <ImageDataDisplay Data="@Observation.RenderData.Map" />
+                }
+                else
+                {
+                    <p>No Map Render Data</p>
+                }
+            </div>
+            <div>
+                <h6>Minimap</h6>
+                @if (Observation.RenderData.Minimap != null)
+                {
+                    // Calculate scale factor: FeatureLayer Minimap is typically 64x64.
+                    // Render Minimap is typically larger (e.g. 300x300).
+                    // We need to scale down the click coordinates from Render resolution to FeatureLayer resolution.
+                    // Scale = FeatureLayerSize / RenderSize.
+                    // Assuming FeatureLayer is 64x64 (standard default).
+                    // If we can't get FeatureLayer size here easily, we might need to pass it or assume 64.
+                    // Let's assume 64 for now as it's the most common default for bots.
+                    double scale = 64.0 / (double)Math.Max(1, Observation.RenderData.Minimap.Size?.X ?? 1);
+                    
+                    <ImageDataDisplay Data="@Observation.RenderData.Minimap" OnClick="OnMinimapClick" Scale="@scale" />
+                }
+                else
+                {
+                    <p>No Minimap Render Data</p>
+                }
             </div>
         }
         else
@@ -39,4 +48,16 @@
 
 @code {
     [Parameter] public SC2APIProtocol.Observation? Observation { get; set; }
+
+    private async Task OnMinimapClick((int X, int Y) coords)
+    {
+        try
+        {
+            await SC2Client.MoveCameraAsync(coords.X, coords.Y);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error moving camera: {ex.Message}");
+        }
+    }
 }

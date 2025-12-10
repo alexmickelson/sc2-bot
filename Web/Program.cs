@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddScoped<SC2Client>();
+builder.Services.AddSingleton<SC2Client>();
 
 var app = builder.Build();
 

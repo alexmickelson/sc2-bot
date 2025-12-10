@@ -1,11 +1,20 @@
 @using SC2APIProtocol
 @using System.IO
 @using System.Text
+@using Microsoft.AspNetCore.Components.Web
 
 @if (ImageUrl != null)
 {
     <div class="mb-2">
-        <img src="@ImageUrl" style="max-width: 100%; border: 1px solid #555; image-rendering: pixelated;" />
+        <img src="@ImageUrl" 
+             draggable="false"
+             style="width: @(Data?.Size?.X ?? 100)px; 
+                    height: @(Data?.Size?.Y ?? 100)px; 
+                    border: 1px solid #555; 
+                    image-rendering: pixelated; 
+                    cursor: @(OnClick.HasDelegate ? "crosshair" : "default"); 
+                    user-select: none;" 
+             @onclick="HandleClick" />
         <div class="small text-muted">
             @if (Data?.Size != null)
             {
@@ -25,8 +34,24 @@ else
 
 @code {
     [Parameter] public ImageData? Data { get; set; }
+    [Parameter] public EventCallback<(int X, int Y)> OnClick { get; set; }
+    [Parameter] public double Scale { get; set; } = 1.0;
 
     private string? ImageUrl;
+
+    private void HandleClick(MouseEventArgs e)
+    {
+        if (OnClick.HasDelegate && Data?.Size != null)
+        {
+            // We are forcing the image display size to match the data size, so 1:1 mapping.
+            int x = (int)(e.OffsetX * Scale);
+            int y = (int)(e.OffsetY * Scale);
+
+            Console.WriteLine($"Click at pixel coords: ({e.OffsetX}, {e.OffsetY}) scaled to ({x}, {y})");
+
+            OnClick.InvokeAsync((x, y));
+        }
+    }
 
     protected override void OnParametersSet()
     {

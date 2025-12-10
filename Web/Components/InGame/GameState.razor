@@ -1,26 +1,33 @@
 @using SC2APIProtocol
 @using Web.Services
+@using System.Threading
 @inject SC2Client SC2Client
+@implements IDisposable
 
 <div class="card mt-3">
     <div class="card-body">
         <h5 class="card-title">Game State</h5>
-        <button class="btn btn-info mb-3" @onclick="GetObservation">Refresh State</button>
+        <div class="mb-3">
+            <button class="btn btn-info me-2" @onclick="GetObservation">Refresh State</button>
+            <button class="btn @(isAutoRefreshing ? "btn-danger" : "btn-success")" @onclick="ToggleAutoRefresh">
+                @(isAutoRefreshing ? "Stop Auto-Refresh" : "Start Auto-Refresh")
+            </button>
+        </div>
         
-        @if (observation != null)
+        @if (mostRecentObservation != null)
         {
-            <p>Game Loop: @observation.Observation.GameLoop</p>
-            <p>Minerals: @observation.Observation.PlayerCommon.Minerals</p>
-            <p>Vespene: @observation.Observation.PlayerCommon.Vespene</p>
-            <p>Supply: @observation.Observation.PlayerCommon.FoodUsed / @observation.Observation.PlayerCommon.FoodCap</p>
+            <p>Game Loop: @mostRecentObservation.GameLoop</p>
+            <p>Minerals: @mostRecentObservation.PlayerCommon.Minerals</p>
+            <p>Vespene: @mostRecentObservation.PlayerCommon.Vespene</p>
+            <p>Supply: @mostRecentObservation.PlayerCommon.FoodUsed / @mostRecentObservation.PlayerCommon.FoodCap</p>
             
-            <MapVisualizer MapState="@observation.Observation.RawData.MapState" Units="@observation.Observation.RawData.Units" />
+            <MapVisualizer MapState="@mostRecentObservation.RawData.MapState" Units="@mostRecentObservation.RawData.Units" />
             
-            <ScoreDisplay Score="@observation.Observation.Score" />
+            <ScoreDisplay Score="@mostRecentObservation.Score" />
             
-            <FeatureLayerDisplay Observation="@observation.Observation" />
+            <FeatureLayerDisplay Observation="@mostRecentObservation" />
             
-            <RenderedDisplay Observation="@observation.Observation" />
+            <RenderedDisplay Observation="@mostRecentObservation" />
         }
         else
         {
@@ -31,6 +38,9 @@
 
 @code {
     private ResponseObservation? observation;
+    private SC2APIProtocol.Observation? mostRecentObservation;
+    private bool isAutoRefreshing = false;
+    private CancellationTokenSource? cts;
 
     protected override void OnInitialized()
     {
@@ -42,10 +52,50 @@
         try 
         {
             observation = await SC2Client.GetObservationAsync();
+            mostRecentObservation = observation?.Observation ?? mostRecentObservation;
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error getting observation: {ex.Message}");
         }
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        isAutoRefreshing = !isAutoRefreshing;
+        if (isAutoRefreshing)
+        {
+            cts = new CancellationTokenSource();
+            _ = AutoRefreshLoop(cts.Token);
+        }
+        else
+        {
+            cts?.Cancel();
+            cts?.Dispose();
+            cts = null;
+        }
+    }
+
+    private async Task AutoRefreshLoop(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            await GetObservation();
+            try 
+            {
+                await Task.Delay(100, token);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
     }
 }
