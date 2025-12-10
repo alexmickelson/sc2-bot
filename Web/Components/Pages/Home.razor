@@ -68,7 +68,7 @@
 }
 
 @code {
-    private bool isConnected = false;
+    private bool isConnected => SC2Client.IsConnected;
     private Status currentStatus = Status.Unknown;
     private string logs = "";
     private InterfaceOptions currentOptions = new InterfaceOptions
@@ -98,7 +98,6 @@
         {
             Log("Connecting to SC2...");
             await SC2Client.ConnectAsync();
-            isConnected = SC2Client.IsConnected;
             Log("Connected successfully.");
 
             // Check current status

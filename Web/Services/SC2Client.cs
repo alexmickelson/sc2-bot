@@ -64,6 +64,12 @@ public class SC2Client : IDisposable
 
       // Log to history
       History.Add(new RequestResponsePair(request, response, DateTime.Now));
+
+      if (History.Count > 130)
+      {
+          History.RemoveRange(0, History.Count - 100);
+      }
+
       OnHistoryUpdated?.Invoke();
 
       return response;

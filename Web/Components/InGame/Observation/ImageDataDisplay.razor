@@ -14,7 +14,10 @@
                     image-rendering: pixelated; 
                     cursor: @(OnClick.HasDelegate ? "crosshair" : "default"); 
                     user-select: none;" 
-             @onclick="HandleClick" />
+             @onmousedown="HandleMouseDown"
+             @onmousemove="HandleMouseMove"
+             @onmouseup="HandleMouseUp"
+             @onmouseleave="HandleMouseUp" />
         <div class="small text-muted">
             @if (Data?.Size != null)
             {
@@ -38,9 +41,36 @@ else
     [Parameter] public double Scale { get; set; } = 1.0;
 
     private string? ImageUrl;
+    private bool isDragging = false;
+    private DateTime lastClickTime = DateTime.MinValue;
+
+    private void HandleMouseDown(MouseEventArgs e)
+    {
+        isDragging = true;
+        HandleClick(e);
+    }
+
+    private void HandleMouseMove(MouseEventArgs e)
+    {
+        if (isDragging)
+        {
+            HandleClick(e);
+        }
+    }
+
+    private void HandleMouseUp(MouseEventArgs e)
+    {
+        isDragging = false;
+    }
 
     private void HandleClick(MouseEventArgs e)
     {
+        if ((DateTime.Now - lastClickTime).TotalMilliseconds < 10)
+        {
+            return;
+        }
+        lastClickTime = DateTime.Now;
+
         if (OnClick.HasDelegate && Data?.Size != null)
         {
             // We are forcing the image display size to match the data size, so 1:1 mapping.
