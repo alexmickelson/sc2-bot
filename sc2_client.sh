@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell -i bash -p wget unzip mesa mesa-gl-headers libgbm mesa-demos
+#!nix-shell -i bash -p wget unzip mesa-demos
 
 set -e
 
@@ -49,7 +49,7 @@ chmod +x "$SC2_BINARY"
 
 echo "Starting SC2 on port 5000..."
 
-# $(find /nix/store -name libOSMesa.so.8 | head -n 1)
+# $(find /nix/store -name libEGL.so | head -n 1)
 
 
 # "$SC_BINARY" -listen 127.0.0.1 -port 5000 -dataDir "$(pwd)/StarCraftII" -tempDir "/tmp/sc2_temp"
