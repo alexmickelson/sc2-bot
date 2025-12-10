@@ -39,3 +39,6 @@ obj/
 s2client-proto/
 
 observation.json
+
+node_modules/
+Web/wwwroot/app.css

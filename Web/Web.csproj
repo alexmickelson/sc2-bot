@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SC2Protocol\SC2Protocol.csproj" />
+    <Watch Include="Styles\**\*.css" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -9,5 +10,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <Target Name="Tailwind" BeforeTargets="Build">
+    <Exec Command="pnpm run build:css" />
+  </Target>
 
 </Project>
