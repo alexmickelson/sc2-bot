@@ -1,11 +1,14 @@
 @typeparam TValue where TValue : notnull
 
-<div class="" role="group">
+<div class="flex flex-wrap" role="group">
   @foreach (var option in Options)
   {
     var isSelected = EqualityComparer<TValue>.Default.Equals(Value, option.Key);
-    var btnClass = isSelected ? "btn-primary" : "btn-outline-primary";
-    <button type="button" class="btn @btnClass mx-1" @onclick="() => HandleSelect(option.Key)">
+    var btnClass = isSelected
+    ? "bg-blue-600 text-white hover:bg-blue-700"
+    : "bg-gray-800 text-blue-400 border border-blue-400 hover:bg-gray-700";
+    <button type="button" class="px-4 py-2 rounded font-semibold transition-colors duration-200 @btnClass mx-1"
+      @onclick="() => HandleSelect(option.Key)">
       @option.Value
     </button>
   }

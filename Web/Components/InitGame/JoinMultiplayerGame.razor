@@ -2,32 +2,34 @@
 @using Web.Services
 @inject SC2Client SC2Client
 
-<div class="card mb-3">
-  <div class="card-body">
-    <h5 class="card-title">Join Multiplayer Game</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+  <div class="p-4">
+    <h5 class="text-lg font-medium mb-2">Join Multiplayer Game</h5>
 
     <div class="mb-3">
-      <label class="form-label">Host IP</label>
-      <input type="text" class="form-control" @bind="hostIp" placeholder="127.0.0.1" />
+      <label class="block text-sm font-medium text-gray-300 mb-1">Host IP</label>
+      <input type="text" class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="hostIp" placeholder="127.0.0.1" />
     </div>
 
     <div class="mb-3">
-      <label class="form-label">Game Port</label>
-      <input type="number" class="form-control" @bind="gamePort" />
+      <label class="block text-sm font-medium text-gray-300 mb-1">Game Port</label>
+      <input type="number" class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="gamePort" />
     </div>
 
     <div class="mb-3">
-      <label class="form-label">My Race</label>
+      <label class="block text-sm font-medium text-gray-300 mb-1">My Race</label>
       <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
     </div>
 
     <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
 
-    <button class="btn btn-warning mt-3" @onclick="HandleJoinGame">Join Game</button>
+    <button
+      class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-yellow-500 text-black hover:bg-yellow-600 mt-3"
+      @onclick="HandleJoinGame">Join Game</button>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-      <div class="alert alert-danger mt-2">@errorMessage</div>
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
     }
   </div>
 </div>

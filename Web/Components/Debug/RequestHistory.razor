@@ -5,12 +5,12 @@
 @inject IJSRuntime JSRuntime
 @implements IDisposable
 
-<div class="card mt-3">
-    <div class="card-header">
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="px-4 py-3 border-b border-gray-700 font-medium">
         Request/Response History (@SC2Client.History.Count)
     </div>
-    <div class="card-body p-0">
-        <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+    <div class="p-0">
+        <div class="divide-y divide-gray-700" style="max-height: 500px; overflow-y: auto;">
             @foreach (var item in SC2Client.History.AsEnumerable().Reverse())
             {
                 var requestId = item.Request.Id;
@@ -18,34 +18,44 @@
                 var status = item.Response.Status;
                 var timestamp = item.Timestamp.ToString("HH:mm:ss.fff");
 
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center" style="cursor: pointer;" @onclick="() => ToggleDetails(item)">
+                <div class="p-4">
+                    <div class="flex justify-between items-center cursor-pointer" @onclick="() => ToggleDetails(item)">
                         <div>
-                            <span class="badge bg-secondary me-2">@timestamp</span>
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-200 mr-2">@timestamp</span>
                             <strong>@requestType</strong>
                         </div>
                         <div>
-                            <span class="badge @GetStatusBadgeClass(status)">@status</span>
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetStatusBadgeClass(status)">@status</span>
                         </div>
                     </div>
-                    
+
                     @if (expandedItems.Contains(item))
                     {
-                        <div class="mt-2 border-top pt-2">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <h6 class="m-0">Request</h6>
-                                        <button class="btn btn-sm btn-outline-secondary py-0" @onclick="() => CopyToClipboard(item.Request)" @onclick:stopPropagation="true">Copy</button>
+                        <div class="mt-2 border-t border-gray-700 pt-2">
+                            <div class="flex flex-wrap -mx-3">
+                                <div class="w-full md:w-1/2 px-3">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h6 class="m-0 font-medium">Request</h6>
+                                        <button
+                                            class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
+                                            @onclick="() => CopyToClipboard(item.Request)"
+                                            @onclick:stopPropagation="true">Copy</button>
                                     </div>
-                                    <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;">@JsonSerializer.Serialize(item.Request, jsonOptions)</pre>
+                                    <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
+                                        style="max-height: 300px;">@JsonSerializer.Serialize(item.Request, jsonOptions)</pre>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <h6 class="m-0">Response</h6>
-                                        <button class="btn btn-sm btn-outline-secondary py-0" @onclick="() => CopyToClipboard(item.Response)" @onclick:stopPropagation="true">Copy</button>
+                                <div class="w-full md:w-1/2 px-3">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h6 class="m-0 font-medium">Response</h6>
+                                        <button
+                                            class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
+                                            @onclick="() => CopyToClipboard(item.Response)"
+                                            @onclick:stopPropagation="true">Copy</button>
                                     </div>
-                                    <pre class="bg-light p-2 small" style="max-height: 300px; overflow: auto;">@JsonSerializer.Serialize(item.Response, jsonOptions)</pre>
+                                    <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
+                                        style="max-height: 300px;">@JsonSerializer.Serialize(item.Response, jsonOptions)</pre>
                                 </div>
                             </div>
                         </div>
@@ -120,12 +130,12 @@
     {
         return status switch
         {
-            Status.Launched => "bg-info",
-            Status.InitGame => "bg-primary",
-            Status.InGame => "bg-success",
-            Status.Ended => "bg-warning",
-            Status.Quit => "bg-dark",
-            _ => "bg-secondary"
+            Status.Launched => "bg-cyan-500 text-white",
+            Status.InitGame => "bg-blue-500 text-white",
+            Status.InGame => "bg-green-500 text-white",
+            Status.Ended => "bg-yellow-500 text-black",
+            Status.Quit => "bg-gray-800 text-white",
+            _ => "bg-gray-500 text-white"
         };
     }
 

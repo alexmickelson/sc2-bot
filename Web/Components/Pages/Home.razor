@@ -21,10 +21,10 @@
     }
     else if (SC2Client.CurrentStatus == Status.InGame)
     {
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">In Game</h5>
-                <button class="btn btn-danger" @onclick="LeaveGame">Leave Game</button>
+        <div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+            <div class="p-4">
+                <h5 class="text-lg font-medium mb-2">In Game</h5>
+                <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-red-500 text-white hover:bg-red-600" @onclick="LeaveGame">Leave Game</button>
             </div>
         </div>
     }

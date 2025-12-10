@@ -3,23 +3,23 @@
 @inject SC2Client SC2Client
 @implements IDisposable
 
-<div class="card mb-3">
-  <div class="card-body">
-    <h5 class="card-title">Created Games</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+  <div class="p-4">
+    <h5 class="text-lg font-medium mb-2">Created Games</h5>
 
     @if (gameExists)
     {
-      <div class="list-group">
-        <div class="list-group-item">
-          <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">Active Game</h5>
-            <small>@status</small>
+      <div class="border border-gray-700 rounded-md">
+        <div class="p-4 border-b border-gray-700 last:border-b-0">
+          <div class="flex justify-between w-full">
+            <h5 class="mb-1 font-medium">Active Game</h5>
+            <small class="text-gray-400">@status</small>
           </div>
           @if (gameInfo != null)
           {
             <p class="mb-1">Map: @gameInfo.MapName</p>
-            <small>Players: @gameInfo.PlayerInfo.Count</small>
-            <ul>
+            <small class="text-gray-500">Players: @gameInfo.PlayerInfo.Count</small>
+            <ul class="list-disc list-inside mt-2">
               @foreach (var player in gameInfo.PlayerInfo)
               {
                 <li>Player @player.PlayerId: @player.Type (@player.RaceActual)</li>
@@ -35,7 +35,7 @@
     }
     else
     {
-      <p class="text-muted">No games created.</p>
+      <p class="text-gray-500">No games created.</p>
     }
   </div>
 </div>

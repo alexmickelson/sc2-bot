@@ -1,10 +1,10 @@
 @using SC2APIProtocol
 
-<div class="card mt-3">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0">Feature Layers</h5>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleLayers">
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <div class="flex justify-between items-center mb-3">
+            <h5 class="text-lg font-medium mb-0">Feature Layers</h5>
+            <button class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200" @onclick="ToggleLayers">
                 @(showLayers ? "Hide" : "Show")
             </button>
         </div>
@@ -13,9 +13,9 @@
         {
             @if (Observation != null && Observation.FeatureLayerData != null)
             {
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Renders</h6>
+                <div class="flex flex-wrap -mx-3">
+                    <div class="w-full md:w-1/2 px-3">
+                        <h6 class="font-medium mb-2">Renders</h6>
                         @if (Observation.FeatureLayerData.Renders != null)
                         {
                              <p>Height Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.HeightMap" /></p>
@@ -42,8 +42,8 @@
                              <p>Placeholder: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Placeholder" /></p>
                         }
                     </div>
-                     <div class="col-md-6">
-                        <h6>Minimap Renders</h6>
+                     <div class="w-full md:w-1/2 px-3">
+                        <h6 class="font-medium mb-2">Minimap Renders</h6>
                         @if (Observation.FeatureLayerData.MinimapRenders != null)
                         {
                              <p>Height Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.HeightMap" /></p>

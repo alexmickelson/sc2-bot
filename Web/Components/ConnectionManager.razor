@@ -4,16 +4,18 @@
 
 @if (SC2Client.ConnectionState != WebSocketState.Open)
 {
-  <div class="card mb-3">
-    <div class="card-body">
-      <h5 class="card-title">Connection Status</h5>
+  <div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+    <div class="p-4">
+      <h5 class="text-lg font-medium mb-2">Connection Status</h5>
       <p>
-        Status: <span class="text-danger">@SC2Client.ConnectionState</span>
+        Status: <span class="text-red-400">@SC2Client.ConnectionState</span>
       </p>
-      <button class="btn btn-primary" @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:5000)</button>
+      <button
+        class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-blue-500 text-white hover:bg-blue-600"
+        @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:5000)</button>
       @if (!string.IsNullOrEmpty(errorMessage))
       {
-        <div class="alert alert-danger mt-2">@errorMessage</div>
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
       }
     </div>
   </div>

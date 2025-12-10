@@ -2,9 +2,9 @@
 @using Web.Services
 @inject SC2Client SC2Client
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h5 class="card-title">Create Game</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Create Game</h5>
 
         @if (isLoadingMaps)
         {
@@ -13,8 +13,8 @@
         else
         {
             <div class="mb-3">
-                <label class="form-label">Select Map</label>
-                <select class="form-select" @bind="selectedMap">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Select Map</label>
+                <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="selectedMap">
                     <option value="">-- Select a Map --</option>
                     @foreach (var map in battleNetMaps)
                     {
@@ -39,26 +39,26 @@
                 </select>
             </div>
 
-            <hr />
-            <h6>Game Settings</h6>
+            <hr class="my-4 border-gray-700" />
+            <h6 class="text-base font-medium mb-2">Game Settings</h6>
 
-            <label class="form-label">My Race: </label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">My Race: </label>
             <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
 
-            <div class="form-check mt-4">
-                <input class="form-check-input" type="checkbox" @bind="realtime">
-                <label class="form-check-label">Realtime Mode</label>
+            <div class="flex items-center mt-4">
+                <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" @bind="realtime">
+                <label class="block text-sm font-medium text-gray-300 mb-0">Realtime Mode</label>
             </div>
 
             <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
 
-            <hr />
-            <h6>Opponent Settings</h6>
+            <hr class="my-4 border-gray-700" />
+            <h6 class="text-base font-medium mb-2">Opponent Settings</h6>
 
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Opponent Type</label>
-                    <select class="form-select" @bind="opponentType">
+            <div class="flex flex-wrap -mx-3 mb-3">
+                <div class="w-full md:w-1/2 px-3">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Type</label>
+                    <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="opponentType">
                         <option value="@PlayerType.Computer">Computer</option>
                         <option value="@PlayerType.Participant">Human (Multiplayer)</option>
                     </select>
@@ -67,14 +67,14 @@
 
             @if (opponentType == PlayerType.Computer)
             {
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Opponent Race</label>
+                <div class="flex flex-wrap -mx-3 mb-3">
+                    <div class="w-full md:w-1/2 px-3">
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Race</label>
                         <ButtonSelect TValue="Race" @bind-Value="opponentRace" Options="raceOptions" />
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Difficulty</label>
-                        <select class="form-select" @bind="opponentDifficulty">
+                    <div class="w-full md:w-1/2 px-3">
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Difficulty</label>
+                        <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="opponentDifficulty">
                             <option value="@Difficulty.VeryEasy">Very Easy</option>
                             <option value="@Difficulty.Easy">Easy</option>
                             <option value="@Difficulty.Medium">Medium</option>
@@ -90,14 +90,14 @@
                 </div>
             }
 
-            <hr />
-            <button class="btn btn-success mt-3" @onclick="HandleCreateGame"
+            <hr class="my-4 border-gray-700" />
+            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed mt-3" @onclick="HandleCreateGame"
                 disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
         }
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="alert alert-danger mt-2">@errorMessage</div>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
         }
     </div>
 </div>

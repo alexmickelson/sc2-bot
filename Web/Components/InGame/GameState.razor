@@ -4,12 +4,12 @@
 @inject SC2Client SC2Client
 @implements IDisposable
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Game State</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Game State</h5>
         <div class="mb-3">
-            <button class="btn btn-info me-2" @onclick="GetObservation">Refresh State</button>
-            <button class="btn @(isAutoRefreshing ? "btn-danger" : "btn-success")" @onclick="ToggleAutoRefresh">
+            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-cyan-500 text-white hover:bg-cyan-600 mr-2" @onclick="GetObservation">Refresh State</button>
+            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 @(isAutoRefreshing ? "bg-red-500 text-white hover:bg-red-600" : "bg-green-500 text-white hover:bg-green-600")" @onclick="ToggleAutoRefresh">
                 @(isAutoRefreshing ? "Stop Auto-Refresh" : "Start Auto-Refresh")
             </button>
         </div>

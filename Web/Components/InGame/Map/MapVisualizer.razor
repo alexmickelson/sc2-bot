@@ -1,8 +1,8 @@
 @using SC2APIProtocol
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Map Visibility</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Map Visibility</h5>
         @if (MapState?.Visibility?.Data != null && Width > 0 && Height > 0)
         {
             <div style="position: relative; width: fit-content; border: 1px solid #333; background-color: #000;">
@@ -26,7 +26,7 @@
             </div>
             <div class="mt-2">
                 <small>Map Size: @Width x @Height</small>
-                <div class="d-flex gap-3">
+                <div class="flex gap-3">
                     <div><span style="display:inline-block; width:10px; height:10px; background-color:black; border:1px solid #ccc;"></span> Hidden</div>
                     <div><span style="display:inline-block; width:10px; height:10px; background-color:grey; border:1px solid #ccc;"></span> Fog</div>
                     <div><span style="display:inline-block; width:10px; height:10px; background-color:white; border:1px solid #ccc;"></span> Visible</div>

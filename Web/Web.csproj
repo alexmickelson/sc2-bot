@@ -2,7 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SC2Protocol\SC2Protocol.csproj" />
-    <Watch Include="Styles\**\*.css" />
+    <!-- <Watch Include="Styles\**\*.css" /> -->
+    <!-- <Watch Include="Styles\**\*.css" /> -->
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,8 +12,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <Target Name="Tailwind" BeforeTargets="Build">
+  <!-- <Target Name="Tailwind" BeforeTargets="Build;ResolveStaticWebAssets">
     <Exec Command="pnpm run build:css" />
-  </Target>
+  </Target> -->
 
 </Project>
+
+

@@ -1,18 +1,18 @@
 @using SC2APIProtocol
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Score</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Score</h5>
         @if (Score != null)
         {
-            <div class="row">
-                <div class="col-md-6">
-                    <h6>Score Type: @Score.ScoreType</h6>
+            <div class="flex flex-wrap -mx-3">
+                <div class="w-full md:w-1/2 px-3">
+                    <h6 class="font-medium">Score Type: @Score.ScoreType</h6>
                     <p>Score: @Score.Score_</p>
                 </div>
-                <div class="col-md-6">
-                    <h6>Details</h6>
-                    <ul>
+                <div class="w-full md:w-1/2 px-3">
+                    <h6 class="font-medium">Details</h6>
+                    <ul class="list-disc pl-5">
                         <li>Idle Production Time: @Score.ScoreDetails.IdleProductionTime</li>
                         <li>Idle Worker Time: @Score.ScoreDetails.IdleWorkerTime</li>
                         <li>Total Value Units: @Score.ScoreDetails.TotalValueUnits</li>

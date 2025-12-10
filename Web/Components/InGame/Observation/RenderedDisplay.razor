@@ -2,9 +2,9 @@
 @using Web.Services
 @inject SC2Client SC2Client
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Rendered Interface</h5>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Rendered Interface</h5>
         @if (Observation != null && Observation.RenderData != null)
         {
             <div>

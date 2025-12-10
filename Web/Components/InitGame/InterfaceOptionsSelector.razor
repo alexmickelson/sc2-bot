@@ -1,27 +1,31 @@
 @using SC2APIProtocol
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Interface Options</h5>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="rawCheck" checked="@Options.Raw" @onchange="@(e => UpdateOption("Raw", e.Value))">
-            <label class="form-check-label" for="rawCheck">Raw Interface</label>
+<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Interface Options</h5>
+        <div class="flex items-center mb-2">
+            <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" id="rawCheck" checked="@Options.Raw"
+                @onchange="@(e => UpdateOption("Raw", e.Value))">
+            <label class="text-sm text-gray-300" for="rawCheck">Raw Interface</label>
         </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="scoreCheck" checked="@Options.Score" @onchange="@(e => UpdateOption("Score", e.Value))">
-            <label class="form-check-label" for="scoreCheck">Score Interface</label>
+        <div class="flex items-center mb-2">
+            <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" id="scoreCheck" checked="@Options.Score"
+                @onchange="@(e => UpdateOption("Score", e.Value))">
+            <label class="text-sm text-gray-300" for="scoreCheck">Score Interface</label>
         </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="featureLayerCheck" checked="@(Options.FeatureLayer != null)" @onchange="@(e => UpdateOption("FeatureLayer", e.Value))">
-            <label class="form-check-label" for="featureLayerCheck">Feature Layer Interface</label>
+        <div class="flex items-center mb-2">
+            <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" id="featureLayerCheck"
+                checked="@(Options.FeatureLayer != null)" @onchange="@(e => UpdateOption("FeatureLayer", e.Value))">
+            <label class="text-sm text-gray-300" for="featureLayerCheck">Feature Layer Interface</label>
         </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="renderCheck" checked="@(Options.Render != null)" @onchange="@(e => UpdateOption("Render", e.Value))">
-            <label class="form-check-label" for="renderCheck">Rendered Interface</label>
+        <div class="flex items-center mb-2">
+            <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" id="renderCheck" checked="@(Options.Render != null)"
+                @onchange="@(e => UpdateOption("Render", e.Value))">
+            <label class="text-sm text-gray-300" for="renderCheck">Rendered Interface</label>
         </div>
-        
+
         <div class="mt-2">
-            <button class="btn btn-primary btn-sm" @onclick="ApplyChanges">Apply Changes</button>
+            <button class="rounded font-semibold transition-colors duration-200 bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 text-sm" @onclick="ApplyChanges">Apply Changes</button>
         </div>
     </div>
 </div>
@@ -45,8 +49,8 @@
                 case "FeatureLayer":
                     if (isChecked)
                     {
-                        Options.FeatureLayer = new SpatialCameraSetup 
-                        { 
+                        Options.FeatureLayer = new SpatialCameraSetup
+                        {
                             Width = 24,
                             Resolution = new Size2DI { X = 64, Y = 64 },
                             MinimapResolution = new Size2DI { X = 64, Y = 64 }
@@ -60,7 +64,12 @@
                 case "Render":
                     if (isChecked)
                     {
-                        Options.Render = new SpatialCameraSetup { Resolution = new Size2DI { X = 800, Y = 600 }, MinimapResolution = new Size2DI { X = 300, Y = 300 } };
+                        Options.Render = new SpatialCameraSetup
+                        {
+                            Resolution = new Size2DI { X = 800, Y = 600 },
+                            MinimapResolution = new Size2DI
+                            { X = 300, Y = 300 }
+                        };
                     }
                     else
                     {
@@ -87,7 +96,12 @@
         if (Options.FeatureLayer != null)
         {
             if (Options.FeatureLayer.Resolution == null) Options.FeatureLayer.Resolution = new Size2DI { X = 64, Y = 64 };
-            if (Options.FeatureLayer.MinimapResolution == null) Options.FeatureLayer.MinimapResolution = new Size2DI { X = 64, Y = 64 };
+            if (Options.FeatureLayer.MinimapResolution == null) Options.FeatureLayer.MinimapResolution = new Size2DI
+            {
+                X = 64,
+                Y =
+            64
+            };
             if (Options.FeatureLayer.Width == 0) Options.FeatureLayer.Width = 24;
         }
     }
