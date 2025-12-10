@@ -1,0 +1,139 @@
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Join Multiplayer Game</h5>
+
+    <div class="mb-3">
+      <label class="form-label">Host IP</label>
+      <input type="text" class="form-control" @bind="hostIp" placeholder="127.0.0.1" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Game Port</label>
+      <input type="number" class="form-control" @bind="gamePort" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">My Race</label>
+      <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
+    </div>
+
+    <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
+
+    <button class="btn btn-warning mt-3" @onclick="HandleJoinGame">Join Game</button>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+      <div class="alert alert-danger mt-2">@errorMessage</div>
+    }
+  </div>
+</div>
+
+@code {
+  [Parameter] public EventCallback OnGameJoined { get; set; }
+
+  private string hostIp = "127.0.0.1";
+  private int gamePort = 5000;
+  private Race myRace = Race.Terran;
+  private string errorMessage = "";
+  private InterfaceOptions InterfaceOptions = new();
+
+  private Dictionary<Race, string> raceOptions = new()
+{
+{ Race.Terran, "Terran" },
+{ Race.Zerg, "Zerg" },
+{ Race.Protoss, "Protoss" },
+{ Race.Random, "Random" }
+};
+
+  protected override void OnInitialized()
+  {
+    // Initialize default options
+    InterfaceOptions = new InterfaceOptions
+    {
+      Raw = true,
+      Score = true,
+      FeatureLayer = new SpatialCameraSetup
+      {
+        Width = 24,
+        Resolution = new Size2DI { X = 64, Y = 64 },
+        MinimapResolution = new Size2DI { X = 64, Y = 64 }
+      },
+      Render = new SpatialCameraSetup
+      {
+        Resolution = new Size2DI { X = 800, Y = 600 },
+        MinimapResolution = new Size2DI { X = 300, Y = 300 }
+      }
+    };
+  }
+
+  private void HandleOptionsChanged(InterfaceOptions options)
+  {
+    InterfaceOptions = options;
+  }
+
+  private async Task HandleJoinGame()
+  {
+    errorMessage = "";
+    try
+    {
+      // Ensure defaults are set if objects exist but resolutions are missing
+      if (InterfaceOptions.Render != null)
+      {
+        InterfaceOptions.Render.Resolution ??= new Size2DI { X = 800, Y = 600 };
+        InterfaceOptions.Render.MinimapResolution ??= new Size2DI { X = 300, Y = 300 };
+      }
+
+      if (InterfaceOptions.FeatureLayer != null)
+      {
+        InterfaceOptions.FeatureLayer.Width = InterfaceOptions.FeatureLayer.Width == 0 ? 24 :
+        InterfaceOptions.FeatureLayer.Width;
+        InterfaceOptions.FeatureLayer.Resolution ??= new Size2DI { X = 64, Y = 64 };
+        InterfaceOptions.FeatureLayer.MinimapResolution ??= new Size2DI { X = 64, Y = 64 };
+      }
+
+      var request = new RequestJoinGame
+      {
+        Race = myRace,
+        Options = InterfaceOptions,
+        ServerPorts = new PortSet { GamePort = gamePort, BasePort = gamePort + 1 },
+        SharedPort = gamePort + 2, // Just a guess, usually shared port is needed for multiplayer
+        HostIp = hostIp
+      };
+
+      // For multiplayer, we usually need client ports too?
+      // The SC2 protocol documentation says:
+      // server_ports: Do not set in the single-player case.
+      // client_ports: Do not set in the single-player case.
+      // shared_port:
+
+      // If we are joining a game hosted by another client, we need to specify ports.
+      // Assuming 2 player game for now.
+
+      // But wait, RequestJoinGame is sent to the LOCAL SC2 client.
+      // The LOCAL SC2 client then connects to the HOST IP.
+
+      var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
+
+      if (response.Status == Status.InGame)
+      {
+        await OnGameJoined.InvokeAsync();
+      }
+      else
+      {
+        errorMessage = $"Failed to join game. Status: {response.Status}";
+        if (response.Error.Count > 0)
+        {
+          errorMessage += " Errors: " + string.Join(", ", response.Error);
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      errorMessage = $"Error while joining game: {ex.Message}";
+    }
+  }
+}

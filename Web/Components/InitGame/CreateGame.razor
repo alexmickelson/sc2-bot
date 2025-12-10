@@ -24,43 +24,37 @@
                     {
                         // Display relative path for readability, but value is absolute path
                         var display = map;
-                        try {
-                             var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
-                             if (map.StartsWith(mapsDir))
-                             {
-                                 display = Path.GetRelativePath(mapsDir, map);
-                             }
-                        } catch {}
-                        
+                        try
+                        {
+                            var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
+                            if (map.StartsWith(mapsDir))
+                            {
+                                display = Path.GetRelativePath(mapsDir, map);
+                            }
+                        }
+                        catch { }
+
                         <option value="@map">@display (Local)</option>
                     }
                 </select>
             </div>
-            
+
             <hr />
             <h6>Game Settings</h6>
 
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">My Race</label>
-                    <select class="form-select" @bind="myRace">
-                        <option value="@Race.Terran">Terran</option>
-                        <option value="@Race.Zerg">Zerg</option>
-                        <option value="@Race.Protoss">Protoss</option>
-                        <option value="@Race.Random">Random</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" @bind="realtime">
-                        <label class="form-check-label">Realtime Mode</label>
-                    </div>
-                </div>
+            <label class="form-label">My Race: </label>
+            <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
+
+            <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" @bind="realtime">
+                <label class="form-check-label">Realtime Mode</label>
             </div>
+
+            <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
 
             <hr />
             <h6>Opponent Settings</h6>
-            
+
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Opponent Type</label>
@@ -76,12 +70,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Opponent Race</label>
-                        <select class="form-select" @bind="opponentRace">
-                            <option value="@Race.Terran">Terran</option>
-                            <option value="@Race.Zerg">Zerg</option>
-                            <option value="@Race.Protoss">Protoss</option>
-                            <option value="@Race.Random">Random</option>
-                        </select>
+                        <ButtonSelect TValue="Race" @bind-Value="opponentRace" Options="raceOptions" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Difficulty</label>
@@ -102,11 +91,10 @@
             }
 
             <hr />
-            <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
-
-            <button class="btn btn-success mt-3" @onclick="HandleCreateGame" disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
+            <button class="btn btn-success mt-3" @onclick="HandleCreateGame"
+                disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
         }
-        
+
         @if (!string.IsNullOrEmpty(errorMessage))
         {
             <div class="alert alert-danger mt-2">@errorMessage</div>
@@ -115,9 +103,6 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback<Race> OnGameCreated { get; set; }
-    [Parameter] public InterfaceOptions InterfaceOptions { get; set; } = new InterfaceOptions();
-    [Parameter] public EventCallback<InterfaceOptions> OnOptionsChanged { get; set; }
 
     private List<string> localMaps = new();
     private List<string> battleNetMaps = new();
@@ -129,15 +114,48 @@
     // Game Settings
     private Race myRace = Race.Terran;
     private bool realtime = true;
-    
+
     // Opponent Settings
     private PlayerType opponentType = PlayerType.Computer;
     private Race opponentRace = Race.Zerg;
     private Difficulty opponentDifficulty = Difficulty.VeryEasy;
 
+    private Dictionary<Race, string> raceOptions = new()
+{
+{ Race.Terran, "Terran" },
+{ Race.Zerg, "Zerg" },
+{ Race.Protoss, "Protoss" },
+{ Race.Random, "Random" }
+};
+
+    private InterfaceOptions InterfaceOptions = new();
+
     protected override async Task OnInitializedAsync()
     {
+        // Initialize default options
+        InterfaceOptions = new InterfaceOptions
+        {
+            Raw = true,
+            Score = true,
+            FeatureLayer = new SpatialCameraSetup
+            {
+                Width = 24,
+                Resolution = new Size2DI { X = 64, Y = 64 },
+                MinimapResolution = new Size2DI { X = 64, Y = 64 }
+            },
+            Render = new SpatialCameraSetup
+            {
+                Resolution = new Size2DI { X = 800, Y = 600 },
+                MinimapResolution = new Size2DI { X = 300, Y = 300 }
+            }
+        };
+
         await LoadMaps();
+    }
+
+    private void HandleOptionsChanged(InterfaceOptions options)
+    {
+        InterfaceOptions = options;
     }
 
     private async Task LoadMaps()
@@ -145,138 +163,132 @@
         isLoadingMaps = true;
         errorMessage = "";
 
-        try 
-        {
-            await LoadMapsFromApi();
-            LoadMapsFromLocalDirectory();
-            
-            localMaps.Sort();
-            battleNetMaps.Sort();
+        await LoadMapsFromApi();
+        LoadMapsFromLocalDirectory();
 
-            // Default to the first local map if available
-            if (localMaps.Count > 0)
-            {
-                selectedMap = localMaps.FirstOrDefault(m => m.Contains("Simple64")) ?? localMaps[0];
-            }
-        }
-        catch (Exception ex)
+        localMaps.Sort();
+        battleNetMaps.Sort();
+
+        // Default to the first local map if available
+        if (localMaps.Count > 0)
         {
-            errorMessage = $"Failed to load maps: {ex.Message}";
+            selectedMap = localMaps.FirstOrDefault(m => m.Contains("Simple64")) ?? localMaps[0];
         }
-        finally
-        {
-            isLoadingMaps = false;
-        }
+
+        isLoadingMaps = false;
+
     }
 
     private async Task LoadMapsFromApi()
     {
-        try 
-        {
-            var maps = await SC2Client.GetAvailableMapsAsync();
-            // SC2 API returns absolute paths usually, or relative to SC2 executable.
-            localMaps = maps.LocalMapPaths.ToList();
-            battleNetMaps = maps.BattlenetMapNames.ToList();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"SC2 API Map List Error: {ex.Message}");
-        }
+        var maps = await SC2Client.GetAvailableMapsAsync();
+        // SC2 API returns absolute paths usually, or relative to SC2 executable.
+        localMaps = maps.LocalMapPaths.ToList();
+        battleNetMaps = maps.BattlenetMapNames.ToList();
     }
 
     private void LoadMapsFromLocalDirectory()
     {
-        try
-        {
-            // Assuming the Web app is running from the 'Web' folder, and StarCraftII is a sibling folder.
-            var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
-            
-            if (!System.IO.Directory.Exists(mapsDir))
-            {
-                Console.WriteLine($"Maps directory not found at: {mapsDir}");
-                return;
-            }
+        // Assuming the Web app is running from the 'Web' folder, and StarCraftII is a sibling folder.
+        var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
 
-            var files = System.IO.Directory.GetFiles(mapsDir, "*.SC2Map", System.IO.SearchOption.AllDirectories);
-            foreach (var file in files)
-            {
-                // Store the ABSOLUTE path in the list to ensure we send the exact file system path
-                if (!localMaps.Contains(file))
-                {
-                    localMaps.Add(file);
-                }
-            }
-        }
-        catch (Exception ex)
+        if (!System.IO.Directory.Exists(mapsDir))
         {
-            Console.WriteLine($"Local File Scan Error: {ex.Message}");
+            Console.WriteLine($"Maps directory not found at: {mapsDir}");
+            return;
+        }
+
+        var files = System.IO.Directory.GetFiles(mapsDir, "*.SC2Map", System.IO.SearchOption.AllDirectories);
+        foreach (var file in files)
+        {
+            // Store the ABSOLUTE path in the list to ensure we send the exact file system path
+            if (!localMaps.Contains(file))
+            {
+                localMaps.Add(file);
+            }
         }
     }
 
     private async Task HandleCreateGame()
     {
         errorMessage = "";
-        try
+        var request = new Request();
+        request.CreateGame = new RequestCreateGame();
+
+        if (selectedMap.EndsWith(".SC2Map"))
         {
-            var request = new Request();
-            request.CreateGame = new RequestCreateGame();
-            
-            if (selectedMap.EndsWith(".SC2Map"))
-            {
-                 request.CreateGame.LocalMap = new LocalMap { MapPath = selectedMap };
-            }
-            else
-            {
-                 request.CreateGame.BattlenetMapName = selectedMap;
-            }
-            
-            // Add players
-            // Player 1 (Us)
-            request.CreateGame.PlayerSetup.Add(new PlayerSetup 
-            { 
-                Type = PlayerType.Participant, 
-                Race = myRace 
-            });
-
-            // Player 2 (Opponent)
-            var opponent = new PlayerSetup 
-            { 
-                Type = opponentType, 
-                Race = opponentRace 
-            };
-            
-            if (opponentType == PlayerType.Computer)
-            {
-                opponent.Difficulty = opponentDifficulty;
-            }
-            
-            request.CreateGame.PlayerSetup.Add(opponent);
-
-            request.CreateGame.Realtime = realtime;
-
-            var response = await SC2Client.SendRequestAsync(request);
-            
-            if (response.Status == Status.InitGame)
-            {
-                await OnGameCreated.InvokeAsync(myRace);
-            }
-            else
-            {
-                errorMessage = $"Game creation failed. Status: {response.Status}";
-                if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
-                if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
-                if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
-            }
+            request.CreateGame.LocalMap = new LocalMap { MapPath = selectedMap };
         }
-        catch (Exception ex)
+        else
         {
-            errorMessage = $"Error creating game: {ex.Message}";
+            request.CreateGame.BattlenetMapName = selectedMap;
+        }
+
+        // Add players
+        // Player 1 (Us)
+        request.CreateGame.PlayerSetup.Add(new PlayerSetup
+        {
+            Type = PlayerType.Participant,
+            Race = myRace
+        });
+
+        // Player 2 (Opponent)
+        var opponent = new PlayerSetup
+        {
+            Type = opponentType,
+            Race = opponentRace
+        };
+
+        if (opponentType == PlayerType.Computer)
+        {
+            opponent.Difficulty = opponentDifficulty;
+        }
+
+        request.CreateGame.PlayerSetup.Add(opponent);
+
+        request.CreateGame.Realtime = realtime;
+
+        var response = await SC2Client.SendRequestAsync(request);
+
+        if (response.Status == Status.InitGame)
+        {
+            await JoinGame();
+        }
+        else
+        {
+            errorMessage = $"Game creation failed. Status: {response.Status}";
+            if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
+            if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
+            if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
         }
     }
 
-    private void HandleOptionsChanged(InterfaceOptions options)
+    private async Task JoinGame()
     {
-        InterfaceOptions = options;
-        OnOptionsChanged.InvokeAsync(options);
+        // Ensure defaults are set if objects exist but resolutions are missing
+        if (InterfaceOptions.Render != null)
+        {
+            InterfaceOptions.Render.Resolution ??= new Size2DI { X = 800, Y = 600 };
+            InterfaceOptions.Render.MinimapResolution ??= new Size2DI { X = 300, Y = 300 };
+        }
+
+        if (InterfaceOptions.FeatureLayer != null)
+        {
+            InterfaceOptions.FeatureLayer.Width = InterfaceOptions.FeatureLayer.Width == 0 ? 24 :
+            InterfaceOptions.FeatureLayer.Width;
+            InterfaceOptions.FeatureLayer.Resolution ??= new Size2DI { X = 64, Y = 64 };
+            InterfaceOptions.FeatureLayer.MinimapResolution ??= new Size2DI { X = 64, Y = 64 };
+        }
+
+        var request = new RequestJoinGame
+        {
+            Race = myRace,
+            Options = InterfaceOptions
+        };
+
+        var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
+
+
     }
+
 }

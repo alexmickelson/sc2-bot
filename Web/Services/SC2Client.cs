@@ -7,16 +7,17 @@ namespace Web.Services;
 
 public class SC2Client : IDisposable
 {
-  private ClientWebSocket? _webSocket;
+  private readonly WebSocketService _webSocketService = new();
   private readonly string _url;
-  private CancellationTokenSource? _cts;
-  private readonly SemaphoreSlim _lock = new(1, 1);
 
   // Store request/response pairs
   public List<RequestResponsePair> History { get; } = new();
   public event System.Action? OnHistoryUpdated;
+  public event System.Action? OnGameStateChanged;
+  public event System.Action? OnConnectionStateChanged;
 
-  public bool IsConnected => _webSocket?.State == WebSocketState.Open;
+  public WebSocketState ConnectionState => _webSocketService.WebSocketState;
+  public Status CurrentStatus { get; private set; } = Status.Unknown;
 
   public SC2Client(string url = "ws://127.0.0.1:5000/sc2api")
   {
@@ -25,42 +26,21 @@ public class SC2Client : IDisposable
 
   public async Task ConnectAsync()
   {
-    if (_webSocket != null && _webSocket.State == WebSocketState.Open) return;
-
-    _webSocket = new ClientWebSocket();
-    _cts = new CancellationTokenSource();
-    await _webSocket.ConnectAsync(new Uri(_url), _cts.Token);
+    await _webSocketService.ConnectAsync(_url);
+    OnConnectionStateChanged?.Invoke();
   }
 
   public async Task<Response> SendRequestAsync(Request request)
   {
-    await _lock.WaitAsync();
-    try
-    {
-      if (_webSocket == null || _webSocket.State != WebSocketState.Open)
-      {
-        throw new InvalidOperationException("Not connected to SC2.");
-      }
-
       var bytes = request.ToByteArray();
-      await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Binary, true, _cts!.Token);
+      var responseBytes = await _webSocketService.SendReceiveAsync(bytes);
+      var response = Response.Parser.ParseFrom(responseBytes);
 
-      using var ms = new MemoryStream();
-      var buffer = new byte[1024 * 32];
-      WebSocketReceiveResult result;
-      do
+      if (response.Status != CurrentStatus)
       {
-        result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        if (result.MessageType == WebSocketMessageType.Close)
-        {
-          await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-          throw new WebSocketException("WebSocket closed by server.");
-        }
-        ms.Write(buffer, 0, result.Count);
-      } while (!result.EndOfMessage);
-
-      ms.Seek(0, SeekOrigin.Begin);
-      var response = Response.Parser.ParseFrom(ms);
+          CurrentStatus = response.Status;
+          OnGameStateChanged?.Invoke();
+      }
 
       // Log to history
       History.Add(new RequestResponsePair(request, response, DateTime.Now));
@@ -73,11 +53,6 @@ public class SC2Client : IDisposable
       OnHistoryUpdated?.Invoke();
 
       return response;
-    }
-    finally
-    {
-      _lock.Release();
-    }
   }
 
   public async Task MoveCameraAsync(int x, int y)
@@ -126,11 +101,17 @@ public class SC2Client : IDisposable
     return response.AvailableMaps;
   }
 
+  public async Task<ResponseGameInfo> GetGameInfoAsync()
+  {
+    var request = new Request { GameInfo = new RequestGameInfo() };
+    var response = await SendRequestAsync(request);
+    return response.GameInfo;
+  }
+
   public void Dispose()
   {
-    _cts?.Cancel();
-    _webSocket?.Dispose();
-    _lock.Dispose();
+    _webSocketService.Dispose();
+    OnConnectionStateChanged?.Invoke();
   }
 }
 

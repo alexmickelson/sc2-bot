@@ -70,8 +70,9 @@
 </div>
 
 @code {
-    [Parameter] public SC2APIProtocol.Observation? Observation { get; set; }
-    private bool showLayers = true;
+    [Parameter] 
+    public SC2APIProtocol.Observation? Observation { get; set; }
+    private bool showLayers = false;
 
     private void ToggleLayers() => showLayers = !showLayers;
 }

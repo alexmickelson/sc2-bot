@@ -1,0 +1,91 @@
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+@implements IDisposable
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Created Games</h5>
+
+    @if (gameExists)
+    {
+      <div class="list-group">
+        <div class="list-group-item">
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">Active Game</h5>
+            <small>@status</small>
+          </div>
+          @if (gameInfo != null)
+          {
+            <p class="mb-1">Map: @gameInfo.MapName</p>
+            <small>Players: @gameInfo.PlayerInfo.Count</small>
+            <ul>
+              @foreach (var player in gameInfo.PlayerInfo)
+              {
+                <li>Player @player.PlayerId: @player.Type (@player.RaceActual)</li>
+              }
+            </ul>
+          }
+          else
+          {
+            <p class="mb-1">Game created. Waiting to join.</p>
+          }
+        </div>
+      </div>
+    }
+    else
+    {
+      <p class="text-muted">No games created.</p>
+    }
+  </div>
+</div>
+
+@code {
+  private bool gameExists = false;
+  private Status status = Status.Unknown;
+  private ResponseGameInfo? gameInfo;
+
+  protected override async Task OnInitializedAsync()
+  {
+    SC2Client.OnGameStateChanged += Refresh;
+    await UpdateState();
+  }
+
+  private async void Refresh()
+  {
+    await InvokeAsync(async () =>
+    {
+      await UpdateState();
+      StateHasChanged();
+    });
+  }
+
+  private async Task UpdateState()
+  {
+    status = SC2Client.CurrentStatus;
+    gameExists = status == Status.InitGame || status == Status.InGame;
+
+    if (gameExists)
+    {
+      try
+      {
+        // GameInfo might fail in InitGame state, but let's try
+        gameInfo = await SC2Client.GetGameInfoAsync();
+      }
+      catch
+      {
+        // Ignore errors if we can't get info yet
+        gameInfo = null;
+      }
+    }
+    else
+    {
+      gameInfo = null;
+    }
+  }
+
+  public void Dispose()
+  {
+    SC2Client.OnGameStateChanged -= Refresh;
+  }
+}

@@ -1,6 +1,8 @@
 ﻿@page "/"
 @using SC2APIProtocol
+@using System.Net.WebSockets
 @using Web.Services
+@using Web.Components.InitGame
 @inject SC2Client SC2Client
 @rendermode InteractiveServer
 
@@ -8,42 +10,16 @@
 
 <h1>StarCraft II Bot Controller</h1>
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h5 class="card-title">Connection Status</h5>
-        <p>
-            Status:
-            @if (isConnected)
-            {
-                <span class="text-success">Connected</span>
-            }
-            else
-            {
-                <span class="text-danger">Disconnected</span>
-            }
-        </p>
-        <button class="btn btn-primary" @onclick="ConnectToSC2" disabled="@isConnected">Connect to SC2
-            (127.0.0.1:5000)</button>
-    </div>
-</div>
+<ConnectionManager />
 
-@if (isConnected)
+@if (SC2Client.ConnectionState == WebSocketState.Open)
 {
-    if (currentStatus == Status.Launched || currentStatus == Status.Ended)
+    if (SC2Client.CurrentStatus == Status.Launched || SC2Client.CurrentStatus == Status.Ended || SC2Client.CurrentStatus ==
+    Status.InitGame)
     {
-        <CreateGame OnGameCreated="HandleGameCreated" InterfaceOptions="@currentOptions" OnOptionsChanged="HandleOptionsChanged" />
+        <GameInit />
     }
-    else if (currentStatus == Status.InitGame)
-    {
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Game Created</h5>
-                <p>Waiting to join...</p>
-                <button class="btn btn-warning" @onclick="JoinGame">Join Game</button>
-            </div>
-        </div>
-    }
-    else if (currentStatus == Status.InGame)
+    else if (SC2Client.CurrentStatus == Status.InGame)
     {
         <div class="card mb-3">
             <div class="card-body">
@@ -53,14 +29,6 @@
         </div>
     }
 
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">Logs</h5>
-            <pre class="bg-light p-2" style="max-height: 300px; overflow-y: auto;">@logs</pre>
-        </div>
-    </div>
-
-    @* <InterfaceOptionsSelector Options="@currentOptions" OnOptionsChanged="HandleOptionsChanged" /> *@
 
     <GameState />
 
@@ -68,230 +36,33 @@
 }
 
 @code {
-    private bool isConnected => SC2Client.IsConnected;
-    private Status currentStatus = Status.Unknown;
-    private string logs = "";
-    private InterfaceOptions currentOptions = new InterfaceOptions
-    {
-        Raw = true,
-        Score = true,
-        FeatureLayer = new SpatialCameraSetup
-        {
-            Width = 24,
-            Resolution = new Size2DI { X = 64, Y = 64 },
-            MinimapResolution = new Size2DI { X = 64, Y = 64 }
-        },
-        Render = new SpatialCameraSetup
-        {
-            Resolution = new Size2DI { X = 800, Y = 600 },
-            MinimapResolution = new Size2DI
-            {
-                X = 300,
-                Y = 300
-            }
-        }
-    };
 
-    private async Task ConnectToSC2()
+    protected override void OnInitialized()
     {
-        try
-        {
-            Log("Connecting to SC2...");
-            await SC2Client.ConnectAsync();
-            Log("Connected successfully.");
-
-            // Check current status
-            currentStatus = await SC2Client.PingAsync();
-            Log($"Current SC2 Status: {currentStatus}");
-        }
-        catch (Exception ex)
-        {
-            Log($"Connection failed: {ex.Message}");
-        }
+        SC2Client.OnGameStateChanged += HandleGameStateChanged;
+        SC2Client.OnConnectionStateChanged += Refresh;
     }
-
-    private async Task HandleGameCreated(Race race)
-    {
-        try
-        {
-            Log("Game created successfully.");
-            currentStatus = await SC2Client.PingAsync();
-            StateHasChanged();
-
-            await JoinGame(race);
-        }
-        catch (Exception ex)
-        {
-            Log($"Error updating status after creation: {ex.Message}");
-        }
-    }
-
-    private async Task JoinGame(Race race)
-    {
-        try
-        {
-            Log("Joining game...");
-
-            var request = new Request();
-            request.JoinGame = new RequestJoinGame
-            {
-                Race = race,
-                Options = currentOptions
-            };
-
-            // Ensure Render options are set if Render is enabled
-            if (currentOptions.Render != null)
-            {
-                // If resolution is not set, set a default
-                if (currentOptions.Render.Resolution == null)
-                {
-                    currentOptions.Render.Resolution = new Size2DI { X = 800, Y = 600 };
-                }
-                if (currentOptions.Render.MinimapResolution == null)
-                {
-                    currentOptions.Render.MinimapResolution = new Size2DI { X = 300, Y = 300 };
-                }
-            }
-
-            // Ensure Feature Layer options are set if Feature Layer is enabled
-            if (currentOptions.FeatureLayer != null)
-            {
-                if (currentOptions.FeatureLayer.Resolution == null)
-                {
-                    currentOptions.FeatureLayer.Resolution = new Size2DI { X = 64, Y = 64 };
-                }
-                if (currentOptions.FeatureLayer.MinimapResolution == null)
-                {
-                    currentOptions.FeatureLayer.MinimapResolution = new Size2DI { X = 64, Y = 64 };
-                }
-                if (currentOptions.FeatureLayer.Width == 0)
-                {
-                    currentOptions.FeatureLayer.Width = 24;
-                }
-            }
-
-            var response = await SC2Client.SendRequestAsync(request);
-            currentStatus = response.Status;
-
-            if (response.Status == Status.InGame)
-            {
-                Log("Joined game successfully!");
-            }
-            else
-            {
-                Log($"Join game response status: {response.Status}");
-                if (response.Error.Count > 0)
-                {
-                    Log($"Errors: {string.Join(", ", response.Error)}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Error joining game: {ex.Message}");
-        }
-    }
-
-    private async Task JoinGame()
-    {
-        // Ensure defaults are set if objects exist but resolutions are missing
-        if (currentOptions.Render != null)
-        {
-            currentOptions.Render.Resolution ??= new Size2DI { X = 800, Y = 600 };
-            currentOptions.Render.MinimapResolution ??= new Size2DI { X = 300, Y = 300 };
-        }
-
-        if (currentOptions.FeatureLayer != null)
-        {
-            currentOptions.FeatureLayer.Width = currentOptions.FeatureLayer.Width == 0 ? 24 : currentOptions.FeatureLayer.Width;
-            currentOptions.FeatureLayer.Resolution ??= new Size2DI { X = 64, Y = 64 };
-            currentOptions.FeatureLayer.MinimapResolution ??= new Size2DI { X = 64, Y = 64 };
-        }
-
-        var request = new RequestJoinGame
-        {
-            Race = Race.Terran,
-            Options = currentOptions,
-            ServerPorts = new PortSet { GamePort = 5000, BasePort = 5001 }
-        };
-
-        try
-        {
-            Log("Joining game as Terran...");
-            var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
-            currentStatus = response.Status;
-
-            if (response.Status == Status.InGame)
-            {
-                Log("Successfully joined the game!");
-            }
-            else
-            {
-                Log($"Failed to join game. Status: {response.Status}");
-                if (response.Error.Count > 0)
-                {
-                    Log("Errors: " + string.Join(", ", response.Error));
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Error while joining game: {ex.Message}");
-        }
-    }
-
-    private async Task LeaveGame()
-    {
-        try
-        {
-            Log("Leaving game...");
-            var request = new Request { LeaveGame = new RequestLeaveGame() };
-            var response = await SC2Client.SendRequestAsync(request);
-            currentStatus = response.Status;
-            Log("Left game.");
-
-            // Refresh status after leaving
-            currentStatus = await SC2Client.PingAsync();
-        }
-        catch (Exception ex)
-        {
-            Log($"Error leaving game: {ex.Message}");
-        }
-    }
-
     public void Dispose()
     {
+        SC2Client.OnGameStateChanged -= HandleGameStateChanged;
+        SC2Client.OnConnectionStateChanged -= Refresh;
     }
 
-    private void Log(string message)
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    private void HandleGameStateChanged()
     {
-        logs += $"{DateTime.Now:HH:mm:ss} - {message}\n";
-        StateHasChanged();
+        InvokeAsync(StateHasChanged);
     }
+    private async Task LeaveGame()
+    {
+        var request = new Request { LeaveGame = new RequestLeaveGame() };
+        var response = await SC2Client.SendRequestAsync(request);
 
+        await SC2Client.PingAsync();
+    }
     private async Task ListMaps()
     {
-        try
-        {
-            Log("Listing available maps...");
-            var maps = await SC2Client.GetAvailableMapsAsync();
-            Log($"Found {maps.BattlenetMapNames.Count} local maps.");
-            foreach (var map in maps.BattlenetMapNames)
-            {
-                Log($" - {map}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Error listing maps: {ex.Message}");
-        }
-    }
-
-    private void HandleOptionsChanged(InterfaceOptions options)
-    {
-        currentOptions = options;
-        // Note: Changing options usually requires re-joining or sending a specific request if supported mid-game.
-        // For now, this just updates the options for the next JoinGame call.
-        Log("Interface options updated. These will take effect on next Join Game.");
+        var maps = await SC2Client.GetAvailableMapsAsync();
     }
 }

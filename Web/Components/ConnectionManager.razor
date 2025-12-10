@@ -1,0 +1,47 @@
+@using System.Net.WebSockets
+@using Web.Services
+@inject SC2Client SC2Client
+
+@if (SC2Client.ConnectionState != WebSocketState.Open)
+{
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Connection Status</h5>
+      <p>
+        Status: <span class="text-danger">@SC2Client.ConnectionState</span>
+      </p>
+      <button class="btn btn-primary" @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:5000)</button>
+      @if (!string.IsNullOrEmpty(errorMessage))
+      {
+        <div class="alert alert-danger mt-2">@errorMessage</div>
+      }
+    </div>
+  </div>
+}
+
+@code {
+
+  private string errorMessage = "";
+
+  protected override async Task OnInitializedAsync()
+  {
+    if (SC2Client.ConnectionState != WebSocketState.Open)
+    {
+      await ConnectToSC2();
+    }
+  }
+
+  private async Task ConnectToSC2()
+  {
+    errorMessage = "";
+    try
+    {
+      await SC2Client.ConnectAsync();
+      await SC2Client.PingAsync();
+    }
+    catch (Exception ex)
+    {
+      errorMessage = $"Connection failed: {ex.Message}";
+    }
+  }
+}

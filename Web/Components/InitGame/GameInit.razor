@@ -1,0 +1,50 @@
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+@implements IDisposable
+
+@if (SC2Client.CurrentStatus == Status.Launched || SC2Client.CurrentStatus == Status.Ended || SC2Client.CurrentStatus ==
+Status.Unknown || SC2Client.CurrentStatus == Status.InitGame)
+{
+  <div class="card">
+    <div class="card-header">
+      <ul class="nav nav-tabs card-header-tabs">
+        <li class="nav-item">
+          <a class="nav-link @(activeTab == "create" ? "active" : "")" @onclick='() => activeTab = "create"'
+            href="#">Create Game</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link @(activeTab == "join" ? "active" : "")" @onclick='() => activeTab = "join"' href="#">Join
+            Multiplayer</a>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body">
+      @if (activeTab == "create")
+      {
+        <CreateGame  />
+      }
+      else
+      {
+        <JoinMultiplayerGame  />
+      }
+    </div>
+  </div>
+}
+
+@code {
+  private string activeTab = "create";
+
+  protected override void OnInitialized()
+  {
+    SC2Client.OnGameStateChanged += Refresh;
+  }
+
+  private void Refresh() => InvokeAsync(StateHasChanged);
+
+
+  public void Dispose()
+  {
+    SC2Client.OnGameStateChanged -= Refresh;
+  }
+}

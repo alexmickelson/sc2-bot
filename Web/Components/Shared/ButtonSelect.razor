@@ -1,0 +1,26 @@
+@typeparam TValue where TValue : notnull
+
+<div class="" role="group">
+  @foreach (var option in Options)
+  {
+    var isSelected = EqualityComparer<TValue>.Default.Equals(Value, option.Key);
+    var btnClass = isSelected ? "btn-primary" : "btn-outline-primary";
+    <button type="button" class="btn @btnClass mx-1" @onclick="() => HandleSelect(option.Key)">
+      @option.Value
+    </button>
+  }
+</div>
+
+@code {
+  [Parameter] public Dictionary<TValue, string> Options { get; set; } = new();
+  [Parameter] public TValue Value { get; set; } = default!;
+  [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+  private async Task HandleSelect(TValue newValue)
+  {
+    if (!EqualityComparer<TValue>.Default.Equals(Value, newValue))
+    {
+      Value = newValue;
+      await ValueChanged.InvokeAsync(newValue);
+    }
+  }
+}
