@@ -1,0 +1,41 @@
+@using SC2APIProtocol
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Score</h5>
+        @if (Score != null)
+        {
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Score Type: @Score.ScoreType</h6>
+                    <p>Score: @Score.Score_</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Details</h6>
+                    <ul>
+                        <li>Idle Production Time: @Score.ScoreDetails.IdleProductionTime</li>
+                        <li>Idle Worker Time: @Score.ScoreDetails.IdleWorkerTime</li>
+                        <li>Total Value Units: @Score.ScoreDetails.TotalValueUnits</li>
+                        <li>Total Value Structures: @Score.ScoreDetails.TotalValueStructures</li>
+                        <li>Killed Value Units: @Score.ScoreDetails.KilledValueUnits</li>
+                        <li>Killed Value Structures: @Score.ScoreDetails.KilledValueStructures</li>
+                        <li>Collected Minerals: @Score.ScoreDetails.CollectedMinerals</li>
+                        <li>Collected Vespene: @Score.ScoreDetails.CollectedVespene</li>
+                        <li>Collection Rate Minerals: @Score.ScoreDetails.CollectionRateMinerals</li>
+                        <li>Collection Rate Vespene: @Score.ScoreDetails.CollectionRateVespene</li>
+                        <li>Spent Minerals: @Score.ScoreDetails.SpentMinerals</li>
+                        <li>Spent Vespene: @Score.ScoreDetails.SpentVespene</li>
+                    </ul>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p>No score data available.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public SC2APIProtocol.Score? Score { get; set; }
+}

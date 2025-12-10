@@ -1,0 +1,72 @@
+@using SC2APIProtocol
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Map Visibility</h5>
+        @if (MapState?.Visibility?.Data != null && Width > 0 && Height > 0)
+        {
+            <div style="position: relative; width: fit-content; border: 1px solid #333; background-color: #000;">
+                <div style="display: grid; grid-template-columns: repeat(@Width, 4px);">
+                    @for (int y = Height - 1; y >= 0; y--) 
+                    {
+                        @for (int x = 0; x < Width; x++)
+                        {
+                            <div style="width: 4px; height: 4px; background-color: @GetColor(x, y);" title="(@x, @y)"></div>
+                        }
+                    }
+                </div>
+
+                @if (Units != null)
+                {
+                    @foreach (var unit in Units)
+                    {
+                        <MapUnit Unit="@unit" />
+                    }
+                }
+            </div>
+            <div class="mt-2">
+                <small>Map Size: @Width x @Height</small>
+                <div class="d-flex gap-3">
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:black; border:1px solid #ccc;"></span> Hidden</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:grey; border:1px solid #ccc;"></span> Fog</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:white; border:1px solid #ccc;"></span> Visible</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:green; border-radius: 50%;"></span> Self</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:red; border-radius: 50%;"></span> Enemy</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; background-color:yellow; border-radius: 50%;"></span> Neutral</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p>No map data available.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public MapState? MapState { get; set; }
+    [Parameter] public Google.Protobuf.Collections.RepeatedField<Unit>? Units { get; set; }
+
+    private int Width => MapState?.Visibility?.Size?.X ?? 0;
+    private int Height => MapState?.Visibility?.Size?.Y ?? 0;
+
+    private string GetColor(int x, int y)
+    {
+        if (MapState?.Visibility?.Data == null) return "black";
+        
+        // Data is row-major, starting from bottom-left (0,0)
+        int index = y * Width + x;
+        
+        if (index < 0 || index >= MapState.Visibility.Data.Length) return "red";
+
+        byte val = MapState.Visibility.Data[index];
+        
+        return val switch
+        {
+            0 => "black",   // Hidden
+            1 => "grey",    // Fog
+            2 => "white",   // Visible
+            _ => "blue"     // Unknown
+        };
+    }
+}

@@ -22,7 +22,17 @@
                     }
                     @foreach (var map in localMaps)
                     {
-                        <option value="@map">@map (Local)</option>
+                        // Display relative path for readability, but value is absolute path
+                        var display = map;
+                        try {
+                             var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
+                             if (map.StartsWith(mapsDir))
+                             {
+                                 display = Path.GetRelativePath(mapsDir, map);
+                             }
+                        } catch {}
+                        
+                        <option value="@map">@display (Local)</option>
                     }
                 </select>
             </div>
@@ -91,7 +101,10 @@
                 </div>
             }
 
-            <button class="btn btn-success" @onclick="HandleCreateGame" disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
+            <hr />
+            <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
+
+            <button class="btn btn-success mt-3" @onclick="HandleCreateGame" disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
         }
         
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -102,11 +115,14 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback OnGameCreated { get; set; }
+    [Parameter] public EventCallback<Race> OnGameCreated { get; set; }
+    [Parameter] public InterfaceOptions InterfaceOptions { get; set; } = new InterfaceOptions();
+    [Parameter] public EventCallback<InterfaceOptions> OnOptionsChanged { get; set; }
 
     private List<string> localMaps = new();
     private List<string> battleNetMaps = new();
     private string selectedMap = "";
+    private string customMapPath = "Melee/Simple64.SC2Map";
     private bool isLoadingMaps = false;
     private string errorMessage = "";
 
@@ -126,12 +142,22 @@
 
     private async Task LoadMaps()
     {
+        isLoadingMaps = true;
+        errorMessage = "";
+
         try 
         {
-            isLoadingMaps = true;
-            var maps = await SC2Client.GetAvailableMapsAsync();
-            localMaps = maps.LocalMapPaths.ToList();
-            battleNetMaps = maps.BattlenetMapNames.ToList();
+            await LoadMapsFromApi();
+            LoadMapsFromLocalDirectory();
+            
+            localMaps.Sort();
+            battleNetMaps.Sort();
+
+            // Default to the first local map if available
+            if (localMaps.Count > 0)
+            {
+                selectedMap = localMaps.FirstOrDefault(m => m.Contains("Simple64")) ?? localMaps[0];
+            }
         }
         catch (Exception ex)
         {
@@ -140,6 +166,50 @@
         finally
         {
             isLoadingMaps = false;
+        }
+    }
+
+    private async Task LoadMapsFromApi()
+    {
+        try 
+        {
+            var maps = await SC2Client.GetAvailableMapsAsync();
+            // SC2 API returns absolute paths usually, or relative to SC2 executable.
+            localMaps = maps.LocalMapPaths.ToList();
+            battleNetMaps = maps.BattlenetMapNames.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SC2 API Map List Error: {ex.Message}");
+        }
+    }
+
+    private void LoadMapsFromLocalDirectory()
+    {
+        try
+        {
+            // Assuming the Web app is running from the 'Web' folder, and StarCraftII is a sibling folder.
+            var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
+            
+            if (!System.IO.Directory.Exists(mapsDir))
+            {
+                Console.WriteLine($"Maps directory not found at: {mapsDir}");
+                return;
+            }
+
+            var files = System.IO.Directory.GetFiles(mapsDir, "*.SC2Map", System.IO.SearchOption.AllDirectories);
+            foreach (var file in files)
+            {
+                // Store the ABSOLUTE path in the list to ensure we send the exact file system path
+                if (!localMaps.Contains(file))
+                {
+                    localMaps.Add(file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Local File Scan Error: {ex.Message}");
         }
     }
 
@@ -188,7 +258,7 @@
             
             if (response.Status == Status.InitGame)
             {
-                await OnGameCreated.InvokeAsync();
+                await OnGameCreated.InvokeAsync(myRace);
             }
             else
             {
@@ -202,5 +272,11 @@
         {
             errorMessage = $"Error creating game: {ex.Message}";
         }
+    }
+
+    private void HandleOptionsChanged(InterfaceOptions options)
+    {
+        InterfaceOptions = options;
+        OnOptionsChanged.InvokeAsync(options);
     }
 }

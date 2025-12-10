@@ -41,14 +41,17 @@ public class SC2Client : IDisposable
     var bytes = request.ToByteArray();
     await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Binary, true, _cts!.Token);
 
-    var buffer = new byte[1024 * 1024]; // 1MB buffer
-    var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-    
-    // Handle fragmented messages if necessary (simplified here)
-    var responseBytes = new byte[result.Count];
-    Array.Copy(buffer, responseBytes, result.Count);
+    using var ms = new MemoryStream();
+    var buffer = new byte[1024 * 32]; 
+    WebSocketReceiveResult result;
+    do
+    {
+        result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
+        ms.Write(buffer, 0, result.Count);
+    } while (!result.EndOfMessage);
 
-    var response = Response.Parser.ParseFrom(responseBytes);
+    ms.Seek(0, SeekOrigin.Begin);
+    var response = Response.Parser.ParseFrom(ms);
 
     // Log to history
     History.Add(new RequestResponsePair(request, response, DateTime.Now));

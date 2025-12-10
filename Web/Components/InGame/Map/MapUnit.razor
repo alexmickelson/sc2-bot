@@ -1,0 +1,27 @@
+@using SC2APIProtocol
+
+<div style="position: absolute; 
+            left: @(Unit.Pos.X * 4)px; 
+            bottom: @(Unit.Pos.Y * 4)px; 
+            width: 4px; height: 4px; 
+            background-color: @GetUnitColor(Unit); 
+            border-radius: 50%;
+            transform: translate(-50%, 50%);"
+     title="@Unit.UnitType (Owner: @Unit.Owner)">
+</div>
+
+@code {
+    [Parameter] public required Unit Unit { get; set; }
+
+    private string GetUnitColor(Unit unit)
+    {
+        return unit.Alliance switch
+        {
+            Alliance.Self => "green",
+            Alliance.Ally => "yellow",
+            Alliance.Neutral => "yellow",
+            Alliance.Enemy => "red",
+            _ => "blue"
+        };
+    }
+}

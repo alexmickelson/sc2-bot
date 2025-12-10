@@ -1,0 +1,42 @@
+@using SC2APIProtocol
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Rendered Interface</h5>
+        @if (Observation != null && Observation.RenderData != null)
+        {
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Map</h6>
+                    @if (Observation.RenderData.Map != null)
+                    {
+                        <ImageDataDisplay Data="@Observation.RenderData.Map" />
+                    }
+                    else
+                    {
+                        <p>No Map Render Data</p>
+                    }
+                </div>
+                <div class="col-md-6">
+                    <h6>Minimap</h6>
+                    @if (Observation.RenderData.Minimap != null)
+                    {
+                        <ImageDataDisplay Data="@Observation.RenderData.Minimap" />
+                    }
+                    else
+                    {
+                        <p>No Minimap Render Data</p>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <p>No rendered data available.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public SC2APIProtocol.Observation? Observation { get; set; }
+}

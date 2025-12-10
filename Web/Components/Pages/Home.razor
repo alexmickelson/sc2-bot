@@ -12,7 +12,7 @@
     <div class="card-body">
         <h5 class="card-title">Connection Status</h5>
         <p>
-            Status: 
+            Status:
             @if (isConnected)
             {
                 <span class="text-success">Connected</span>
@@ -22,7 +22,8 @@
                 <span class="text-danger">Disconnected</span>
             }
         </p>
-        <button class="btn btn-primary" @onclick="ConnectToSC2" disabled="@isConnected">Connect to SC2 (127.0.0.1:5000)</button>
+        <button class="btn btn-primary" @onclick="ConnectToSC2" disabled="@isConnected">Connect to SC2
+            (127.0.0.1:5000)</button>
     </div>
 </div>
 
@@ -30,7 +31,7 @@
 {
     if (currentStatus == Status.Launched || currentStatus == Status.Ended)
     {
-        <CreateGame OnGameCreated="HandleGameCreated" />
+        <CreateGame OnGameCreated="HandleGameCreated" InterfaceOptions="@currentOptions" OnOptionsChanged="HandleOptionsChanged" />
     }
     else if (currentStatus == Status.InitGame)
     {
@@ -59,18 +60,9 @@
         </div>
     </div>
 
-    @if (observation != null)
-    {
-        <div class="card mt-3">
-            <div class="card-body">
-                <h5 class="card-title">Game State</h5>
-                <p>Game Loop: @observation.Observation.GameLoop</p>
-                <p>Minerals: @observation.Observation.PlayerCommon.Minerals</p>
-                <p>Vespene: @observation.Observation.PlayerCommon.Vespene</p>
-                <p>Supply: @observation.Observation.PlayerCommon.FoodUsed / @observation.Observation.PlayerCommon.FoodCap</p>
-            </div>
-        </div>
-    }
+    @* <InterfaceOptionsSelector Options="@currentOptions" OnOptionsChanged="HandleOptionsChanged" /> *@
+
+    <GameState />
 
     <RequestHistory />
 }
@@ -79,8 +71,31 @@
     private bool isConnected = false;
     private Status currentStatus = Status.Unknown;
     private string logs = "";
-    private ResponseObservation? observation;
-    private CancellationTokenSource? _gameLoopCts;
+    private InterfaceOptions currentOptions = new InterfaceOptions
+    {
+        Raw = true,
+        Score = true,
+        FeatureLayer = new SpatialCameraSetup
+        {
+            Width = 24,
+            Resolution = new Size2DI { X = 64, Y = 64 },
+            MinimapResolution = new Size2DI { X = 64, Y = 64 }
+        },
+        Render = new SpatialCameraSetup
+        {
+            Resolution = new Size2DI { X = 800, Y = 600 },
+            MinimapResolution = new Size2DI
+            {
+                X = 300,
+                Y = 300
+            }
+        }
+        @* {
+            Width = 24,
+            Resolution = new Size2DI { X = 64, Y = 64 },
+            MinimapResolution = new Size2DI { X = 64, Y = 64 }
+        }, *@
+    };
 
     private async Task ConnectToSC2()
     {
@@ -94,11 +109,6 @@
             // Check current status
             currentStatus = await SC2Client.PingAsync();
             Log($"Current SC2 Status: {currentStatus}");
-
-            if (currentStatus == Status.InGame)
-            {
-                _ = StartGameLoop();
-            }
         }
         catch (Exception ex)
         {
@@ -106,41 +116,77 @@
         }
     }
 
-    private async Task HandleGameCreated()
+    private async Task HandleGameCreated(Race race)
     {
-        Log("Game created successfully.");
-        currentStatus = await SC2Client.PingAsync();
+        try
+        {
+            Log("Game created successfully.");
+            currentStatus = await SC2Client.PingAsync();
+            StateHasChanged();
+
+            await JoinGame(race);
+        }
+        catch (Exception ex)
+        {
+            Log($"Error updating status after creation: {ex.Message}");
+        }
     }
 
-    private async Task JoinGame()
+    private async Task JoinGame(Race race)
     {
         try
         {
             Log("Joining game...");
-            
+
             var request = new Request();
             request.JoinGame = new RequestJoinGame
             {
-                Race = Race.Terran,
-                Options = new InterfaceOptions
-                {
-                    Raw = true,
-                    Score = true
-                }
+                Race = race,
+                Options = currentOptions
             };
+
+            // Ensure Render options are set if Render is enabled
+            if (currentOptions.Render != null)
+            {
+                // If resolution is not set, set a default
+                if (currentOptions.Render.Resolution == null)
+                {
+                    currentOptions.Render.Resolution = new Size2DI { X = 800, Y = 600 };
+                }
+                if (currentOptions.Render.MinimapResolution == null)
+                {
+                    currentOptions.Render.MinimapResolution = new Size2DI { X = 300, Y = 300 };
+                }
+            }
+
+            // Ensure Feature Layer options are set if Feature Layer is enabled
+            if (currentOptions.FeatureLayer != null)
+            {
+                if (currentOptions.FeatureLayer.Resolution == null)
+                {
+                    currentOptions.FeatureLayer.Resolution = new Size2DI { X = 64, Y = 64 };
+                }
+                if (currentOptions.FeatureLayer.MinimapResolution == null)
+                {
+                    currentOptions.FeatureLayer.MinimapResolution = new Size2DI { X = 64, Y = 64 };
+                }
+                if (currentOptions.FeatureLayer.Width == 0)
+                {
+                    currentOptions.FeatureLayer.Width = 24;
+                }
+            }
 
             var response = await SC2Client.SendRequestAsync(request);
             currentStatus = response.Status;
-            
+
             if (response.Status == Status.InGame)
             {
                 Log("Joined game successfully!");
-                _ = StartGameLoop();
             }
             else
             {
                 Log($"Join game response status: {response.Status}");
-                 if (response.Error.Count > 0)
+                if (response.Error.Count > 0)
                 {
                     Log($"Errors: {string.Join(", ", response.Error)}");
                 }
@@ -152,18 +198,64 @@
         }
     }
 
+    private async Task JoinGame()
+    {
+        // Ensure defaults are set if objects exist but resolutions are missing
+        if (currentOptions.Render != null)
+        {
+            currentOptions.Render.Resolution ??= new Size2DI { X = 800, Y = 600 };
+            currentOptions.Render.MinimapResolution ??= new Size2DI { X = 300, Y = 300 };
+        }
+
+        if (currentOptions.FeatureLayer != null)
+        {
+            currentOptions.FeatureLayer.Width = currentOptions.FeatureLayer.Width == 0 ? 24 : currentOptions.FeatureLayer.Width;
+            currentOptions.FeatureLayer.Resolution ??= new Size2DI { X = 64, Y = 64 };
+            currentOptions.FeatureLayer.MinimapResolution ??= new Size2DI { X = 64, Y = 64 };
+        }
+
+        var request = new RequestJoinGame
+        {
+            Race = Race.Terran,
+            Options = currentOptions,
+            ServerPorts = new PortSet { GamePort = 5000, BasePort = 5001 }
+        };
+
+        try
+        {
+            Log("Joining game as Terran...");
+            var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
+            currentStatus = response.Status;
+
+            if (response.Status == Status.InGame)
+            {
+                Log("Successfully joined the game!");
+            }
+            else
+            {
+                Log($"Failed to join game. Status: {response.Status}");
+                if (response.Error.Count > 0)
+                {
+                    Log("Errors: " + string.Join(", ", response.Error));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Error while joining game: {ex.Message}");
+        }
+    }
+
     private async Task LeaveGame()
     {
         try
         {
-            _gameLoopCts?.Cancel();
             Log("Leaving game...");
             var request = new Request { LeaveGame = new RequestLeaveGame() };
             var response = await SC2Client.SendRequestAsync(request);
             currentStatus = response.Status;
             Log("Left game.");
-            observation = null;
-            
+
             // Refresh status after leaving
             currentStatus = await SC2Client.PingAsync();
         }
@@ -173,59 +265,8 @@
         }
     }
 
-    private async Task StartGameLoop()
-    {
-        _gameLoopCts = new CancellationTokenSource();
-        var token = _gameLoopCts.Token;
-
-        Log("Starting Game Loop...");
-
-        try
-        {
-            while (!token.IsCancellationRequested && isConnected)
-            {
-                // 1. Get Observation
-                observation = await SC2Client.GetObservationAsync();
-                await InvokeAsync(StateHasChanged);
-
-                // 2. Run Bot Logic
-                await OnGameLoop(observation);
-
-                // 3. Wait a bit (since we are in Realtime mode)
-                // In 'Step' mode, you would send RequestStep here instead of Delay.
-                await Task.Delay(100, token); 
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Loop stopped
-        }
-        catch (Exception ex)
-        {
-            Log($"Game Loop Error: {ex.Message}");
-        }
-    }
-
-    private async Task OnGameLoop(ResponseObservation obs)
-    {
-        // This code runs every time we get a new observation
-        var loop = obs.Observation.GameLoop;
-
-        // Example: Log every 100 game loops (approx 5 seconds in realtime)
-        if (loop % 100 == 0)
-        {
-            Log($"[Bot] Game Loop {loop}: Minerals: {obs.Observation.PlayerCommon.Minerals}");
-            
-            // TODO: Add your bot logic here!
-            // e.g. if (minerals > 50) TrainWorker();
-        }
-        
-        await Task.CompletedTask;
-    }
-
     public void Dispose()
     {
-        _gameLoopCts?.Cancel();
     }
 
     private void Log(string message)
@@ -250,5 +291,13 @@
         {
             Log($"Error listing maps: {ex.Message}");
         }
+    }
+
+    private void HandleOptionsChanged(InterfaceOptions options)
+    {
+        currentOptions = options;
+        // Note: Changing options usually requires re-joining or sending a specific request if supported mid-game.
+        // For now, this just updates the options for the next JoinGame call.
+        Log("Interface options updated. These will take effect on next Join Game.");
     }
 }

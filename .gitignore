@@ -37,3 +37,5 @@ Maps/
 bin/
 obj/
 s2client-proto/
+
+observation.json

@@ -1,0 +1,142 @@
+@using SC2APIProtocol
+@using System.IO
+@using System.Text
+
+@if (ImageUrl != null)
+{
+    <div class="mb-2">
+        <img src="@ImageUrl" style="max-width: 100%; border: 1px solid #555; image-rendering: pixelated;" />
+        <div class="small text-muted">
+            @if (Data?.Size != null)
+            {
+                <span>@Data.Size.X x @Data.Size.Y (@Data.BitsPerPixel bpp)</span>
+            }
+        </div>
+    </div>
+}
+else if (Data != null)
+{
+    <div class="text-warning">No image data</div>
+}
+else
+{
+    <span class="text-muted">Missing</span>
+}
+
+@code {
+    [Parameter] public ImageData? Data { get; set; }
+
+    private string? ImageUrl;
+
+    protected override void OnParametersSet()
+    {
+        if (Data != null && Data.Data != null && Data.Size != null && Data.Data.Length > 0)
+        {
+            try 
+            {
+                var bmpBytes = CreateBmp(Data);
+                var base64 = Convert.ToBase64String(bmpBytes);
+                ImageUrl = $"data:image/bmp;base64,{base64}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating BMP: {ex.Message}");
+                ImageUrl = null;
+            }
+        }
+        else
+        {
+            ImageUrl = null;
+        }
+    }
+
+    private byte[] CreateBmp(ImageData data)
+    {
+        int width = data.Size.X;
+        int height = data.Size.Y;
+        int bpp = data.BitsPerPixel;
+        byte[] pixelData = data.Data.ToByteArray();
+
+        // BMP rows must be padded to 4 bytes
+        int rowStride = ((width * bpp + 31) / 32) * 4;
+        int pixelDataSize = rowStride * height;
+        
+        // For 1bpp and 8bpp we need a palette
+        int paletteSize = 0;
+        if (bpp == 1) paletteSize = 2 * 4; // 2 colors * 4 bytes (BGRA)
+        else if (bpp == 8) paletteSize = 256 * 4; // 256 colors * 4 bytes
+
+        int fileSize = 14 + 40 + paletteSize + pixelDataSize;
+
+        using (var ms = new MemoryStream(fileSize))
+        using (var writer = new BinaryWriter(ms))
+        {
+            // 1. Bitmap File Header (14 bytes)
+            writer.Write(Encoding.ASCII.GetBytes("BM")); // Signature
+            writer.Write(fileSize); // File size
+            writer.Write((short)0); // Reserved
+            writer.Write((short)0); // Reserved
+            writer.Write(14 + 40 + paletteSize); // Offset to pixel data
+
+            // 2. DIB Header (BITMAPINFOHEADER) (40 bytes)
+            writer.Write(40); // Header size
+            writer.Write(width); // Width
+            writer.Write(height); // Height (positive = bottom-up). 
+            writer.Write((short)1); // Planes
+            writer.Write((short)bpp); // Bits per pixel
+            writer.Write(0); // Compression (BI_RGB = 0)
+            writer.Write(pixelDataSize); // Image size (can be 0 for BI_RGB)
+            writer.Write(0); // X pixels per meter
+            writer.Write(0); // Y pixels per meter
+            writer.Write(0); // Colors used
+            writer.Write(0); // Important colors
+
+            // 3. Color Table
+            if (bpp == 1)
+            {
+                // Black (0)
+                writer.Write((byte)0); writer.Write((byte)0); writer.Write((byte)0); writer.Write((byte)0);
+                // White (1)
+                writer.Write((byte)255); writer.Write((byte)255); writer.Write((byte)255); writer.Write((byte)0);
+            }
+            else if (bpp == 8)
+            {
+                // Grayscale palette
+                for (int i = 0; i < 256; i++)
+                {
+                    writer.Write((byte)i); // Blue
+                    writer.Write((byte)i); // Green
+                    writer.Write((byte)i); // Red
+                    writer.Write((byte)0); // Reserved
+                }
+            }
+
+            // 4. Pixel Data
+            int sourceStride = (width * bpp + 7) / 8;
+            byte[] padding = new byte[rowStride - sourceStride];
+
+            // Iterate backwards to flip the image (SC2 data is Top-Left, BMP is Bottom-Left)
+            for (int y = height - 1; y >= 0; y--)
+            {
+                int sourceIndex = y * sourceStride;
+                if (sourceIndex < pixelData.Length)
+                {
+                    int length = Math.Min(sourceStride, pixelData.Length - sourceIndex);
+                    writer.Write(pixelData, sourceIndex, length);
+                    if (length < sourceStride)
+                    {
+                        writer.Write(new byte[sourceStride - length]);
+                    }
+                    writer.Write(padding);
+                }
+                else
+                {
+                    writer.Write(new byte[sourceStride]);
+                    writer.Write(padding);
+                }
+            }
+
+            return ms.ToArray();
+        }
+    }
+}

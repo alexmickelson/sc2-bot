@@ -1,0 +1,127 @@
+@using SC2APIProtocol
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Interface Options</h5>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="rawCheck" checked="@Options.Raw" @onchange="@(e => UpdateOption("Raw", e.Value))">
+            <label class="form-check-label" for="rawCheck">Raw Interface</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="scoreCheck" checked="@Options.Score" @onchange="@(e => UpdateOption("Score", e.Value))">
+            <label class="form-check-label" for="scoreCheck">Score Interface</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="featureLayerCheck" checked="@(Options.FeatureLayer != null)" @onchange="@(e => UpdateOption("FeatureLayer", e.Value))">
+            <label class="form-check-label" for="featureLayerCheck">Feature Layer Interface</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="renderCheck" checked="@(Options.Render != null)" @onchange="@(e => UpdateOption("Render", e.Value))">
+            <label class="form-check-label" for="renderCheck">Rendered Interface</label>
+        </div>
+        
+        <div class="mt-2">
+            <button class="btn btn-primary btn-sm" @onclick="ApplyChanges">Apply Changes</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public InterfaceOptions Options { get; set; } = new InterfaceOptions();
+    [Parameter] public EventCallback<InterfaceOptions> OnOptionsChanged { get; set; }
+
+    private void UpdateOption(string option, object? value)
+    {
+        if (value is bool isChecked)
+        {
+            switch (option)
+            {
+                case "Raw":
+                    Options.Raw = isChecked;
+                    break;
+                case "Score":
+                    Options.Score = isChecked;
+                    break;
+                case "FeatureLayer":
+                    if (isChecked)
+                    {
+                        Options.FeatureLayer = new SpatialCameraSetup 
+                        { 
+                            Width = 24,
+                            Resolution = new Size2DI { X = 64, Y = 64 },
+                            MinimapResolution = new Size2DI { X = 64, Y = 64 }
+                        };
+                    }
+                    else
+                    {
+                        Options.FeatureLayer = null;
+                    }
+                    break;
+                case "Render":
+                    if (isChecked)
+                    {
+                        Options.Render = new SpatialCameraSetup { Resolution = new Size2DI { X = 800, Y = 600 }, MinimapResolution = new Size2DI { X = 300, Y = 300 } };
+                    }
+                    else
+                    {
+                        Options.Render = null;
+                    }
+                    break;
+            }
+        }
+    }
+
+    private async Task ApplyChanges()
+    {
+        await OnOptionsChanged.InvokeAsync(Options);
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Ensure defaults are set if objects exist but properties are missing
+        if (Options.Render != null)
+        {
+            if (Options.Render.Resolution == null) Options.Render.Resolution = new Size2DI { X = 800, Y = 600 };
+            if (Options.Render.MinimapResolution == null) Options.Render.MinimapResolution = new Size2DI { X = 300, Y = 300 };
+        }
+        if (Options.FeatureLayer != null)
+        {
+            if (Options.FeatureLayer.Resolution == null) Options.FeatureLayer.Resolution = new Size2DI { X = 64, Y = 64 };
+            if (Options.FeatureLayer.MinimapResolution == null) Options.FeatureLayer.MinimapResolution = new Size2DI { X = 64, Y = 64 };
+            if (Options.FeatureLayer.Width == 0) Options.FeatureLayer.Width = 24;
+        }
+    }
+
+    private void ToggleRender(ChangeEventArgs e)
+    {
+        if ((bool)e.Value!)
+        {
+            Options.Render = new SpatialCameraSetup
+            {
+                Resolution = new Size2DI { X = 800, Y = 600 },
+                MinimapResolution = new Size2DI { X = 300, Y = 300 }
+            };
+        }
+        else
+        {
+            Options.Render = null;
+        }
+    }
+
+    private void ToggleFeatureLayer(ChangeEventArgs e)
+    {
+        if ((bool)e.Value!)
+        {
+            Options.FeatureLayer = new SpatialCameraSetup
+            {
+                Width = 24,
+                Resolution = new Size2DI { X = 64, Y = 64 },
+                MinimapResolution = new Size2DI { X = 64, Y = 64 }
+            };
+        }
+        else
+        {
+            Options.FeatureLayer = null;
+        }
+    }
+}

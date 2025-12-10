@@ -1,0 +1,51 @@
+@using SC2APIProtocol
+@using Web.Services
+@inject SC2Client SC2Client
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Game State</h5>
+        <button class="btn btn-info mb-3" @onclick="GetObservation">Refresh State</button>
+        
+        @if (observation != null)
+        {
+            <p>Game Loop: @observation.Observation.GameLoop</p>
+            <p>Minerals: @observation.Observation.PlayerCommon.Minerals</p>
+            <p>Vespene: @observation.Observation.PlayerCommon.Vespene</p>
+            <p>Supply: @observation.Observation.PlayerCommon.FoodUsed / @observation.Observation.PlayerCommon.FoodCap</p>
+            
+            <MapVisualizer MapState="@observation.Observation.RawData.MapState" Units="@observation.Observation.RawData.Units" />
+            
+            <ScoreDisplay Score="@observation.Observation.Score" />
+            
+            <FeatureLayerDisplay Observation="@observation.Observation" />
+            
+            <RenderedDisplay Observation="@observation.Observation" />
+        }
+        else
+        {
+            <p>No observation data available.</p>
+        }
+    </div>
+</div>
+
+@code {
+    private ResponseObservation? observation;
+
+    protected override void OnInitialized()
+    {
+        // Optionally fetch initial state
+    }
+
+    private async Task GetObservation()
+    {
+        try 
+        {
+            observation = await SC2Client.GetObservationAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting observation: {ex.Message}");
+        }
+    }
+}

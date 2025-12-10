@@ -1,0 +1,77 @@
+@using SC2APIProtocol
+
+<div class="card mt-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Feature Layers</h5>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleLayers">
+                @(showLayers ? "Hide" : "Show")
+            </button>
+        </div>
+
+        @if (showLayers)
+        {
+            @if (Observation != null && Observation.FeatureLayerData != null)
+            {
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Renders</h6>
+                        @if (Observation.FeatureLayerData.Renders != null)
+                        {
+                             <p>Height Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.HeightMap" /></p>
+                             <p>Visibility Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.VisibilityMap" /></p>
+                             <p>Creep: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Creep" /></p>
+                             <p>Power: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Power" /></p>
+                             <p>Player Id: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.PlayerId" /></p>
+                             <p>Unit Type: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitType" /></p>
+                             <p>Selected: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Selected" /></p>
+                             <p>Unit Hitpoint: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitHitPoints" /></p>
+                             <p>Unit Energy: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitEnergy" /></p>
+                             <p>Unit Shields: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitShields" /></p>
+                             <p>Player Relative: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.PlayerRelative" /></p>
+                             <p>Unit Density Aa: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitDensityAa" /></p>
+                             <p>Unit Density: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.UnitDensity" /></p>
+                             <p>Effects: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Effects" /></p>
+                             <p>Hallucinations: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Hallucinations" /></p>
+                             <p>Cloaked: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Cloaked" /></p>
+                             <p>Blip: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Blip" /></p>
+                             <p>Buffs: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Buffs" /></p>
+                             <p>Active: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Active" /></p>
+                             <p>Build Progress: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.BuildProgress" /></p>
+                             <p>Pathable: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Pathable" /></p>
+                             <p>Placeholder: <ImageDataDisplay Data="@Observation.FeatureLayerData.Renders.Placeholder" /></p>
+                        }
+                    </div>
+                     <div class="col-md-6">
+                        <h6>Minimap Renders</h6>
+                        @if (Observation.FeatureLayerData.MinimapRenders != null)
+                        {
+                             <p>Height Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.HeightMap" /></p>
+                             <p>Visibility Map: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.VisibilityMap" /></p>
+                             <p>Creep: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Creep" /></p>
+                             <p>Camera: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Camera" /></p>
+                             <p>Player Id: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.PlayerId" /></p>
+                             <p>Player Relative: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.PlayerRelative" /></p>
+                             <p>Selected: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Selected" /></p>
+                             <p>Unit Type: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.UnitType" /></p>
+                             <p>Alerts: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Alerts" /></p>
+                             <p>Pathable: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Pathable" /></p>
+                             <p>Buildable: <ImageDataDisplay Data="@Observation.FeatureLayerData.MinimapRenders.Buildable" /></p>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p>No feature layer data available.</p>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public SC2APIProtocol.Observation? Observation { get; set; }
+    private bool showLayers = true;
+
+    private void ToggleLayers() => showLayers = !showLayers;
+}
