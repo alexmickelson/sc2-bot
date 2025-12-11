@@ -4,7 +4,18 @@ import time
 import importlib
 import socket
 import portpicker
-from absl import app, flags, logging
+from absl import flags
+
+# Configuration Constants
+RENDER = False
+REALTIME = True
+MAP_NAME = "Simple64"
+USER_NAME = "HostPlayer"
+USER_RACE = "terran"
+FPS = 22.4
+STEP_MUL = 1
+HOST = "127.0.0.1"
+CONFIG_PORT = 14381
 
 # Patch pysc2 for Python 3.13+ compatibility
 try:
@@ -21,25 +32,17 @@ from pysc2.lib import renderer_human
 from s2clientprotocol import sc2api_pb2 as sc_pb
 
 FLAGS = flags.FLAGS
-flags.DEFINE_bool("render", True, "Whether to render with pygame.")
-flags.DEFINE_bool("realtime", True, "Whether to run in realtime mode.")
-flags.DEFINE_string("map", "Simple64", "Name of a map to use to play.")
-flags.DEFINE_string("user_name", "HostPlayer", "Name of the human player.")
-flags.DEFINE_enum("user_race", "terran", sc2_env.Race._member_names_, "User's race.")
-flags.DEFINE_float("fps", 22.4, "Frames per second to run the game.")
-flags.DEFINE_integer("step_mul", 1, "Game steps per agent step.")
-flags.DEFINE_string("host", "0.0.0.0", "IP to listen on. 0.0.0.0 for all interfaces.")
-flags.DEFINE_integer("config_port", 14380, "Port for config/settings exchange.")
+FLAGS(sys.argv)
 
-def main(unused_argv):
-    print(f"Starting Host on {FLAGS.host}:{FLAGS.config_port}...")
+def main():
+    print(f"Starting Host on {HOST}:{CONFIG_PORT}...")
     
     run_config = run_configs.get()
-    map_inst = maps.get(FLAGS.map)
+    map_inst = maps.get(MAP_NAME)
     
     # Reserve ports: 1 for config (already defined), 2 for server (game+base), 2 for client (game+base)
     # We need 4 ports starting from config_port + 1
-    ports = [FLAGS.config_port + p for p in range(5)]
+    ports = [CONFIG_PORT + p for p in range(5)]
     
     # Check if ports are free (simple check)
     # In a real scenario, we might want to use portpicker to find free ports dynamically
@@ -52,7 +55,7 @@ def main(unused_argv):
         # Start SC2 process
         print("Launching StarCraft II...")
         proc = run_config.start(extra_ports=ports[1:], timeout_seconds=300,
-                                host=FLAGS.host, window_loc=(50, 50))
+                                host=HOST, window_loc=(50, 50))
         
         tcp_port = ports[0]
         settings = {
@@ -60,7 +63,7 @@ def main(unused_argv):
             "map_path": map_inst.path,
             "map_data": map_inst.data(run_config),
             "game_version": proc.version.game_version,
-            "realtime": FLAGS.realtime,
+            "realtime": REALTIME,
             "remote": False,
             "ports": {
                 "server": {"game": ports[1], "base": ports[2]},
@@ -87,7 +90,7 @@ def main(unused_argv):
         
         # Start TCP Server to exchange settings with client
         tcp_conn = lan_sc2_env.tcp_server(
-            lan_sc2_env.Addr(FLAGS.host, tcp_port), settings)
+            lan_sc2_env.Addr(HOST, tcp_port), settings)
         
         print("Opponent connected! Joining game...")
         
@@ -99,8 +102,8 @@ def main(unused_argv):
         join.client_ports.add(game_port=settings["ports"]["client"]["game"],
                               base_port=settings["ports"]["client"]["base"])
         
-        join.race = sc2_env.Race[FLAGS.user_race]
-        join.player_name = FLAGS.user_name
+        join.race = sc2_env.Race[USER_RACE]
+        join.player_name = USER_NAME
         
         # Setup rendering options
         join.options.raw = True
@@ -113,12 +116,16 @@ def main(unused_argv):
         
         controller.join_game(join)
         
-        print("Game joined. Starting renderer...")
+        print("Game joined. Running loop...")
         
-        renderer = renderer_human.RendererHuman(
-            fps=FLAGS.fps, render_feature_grid=False)
-        
-        renderer.run(run_configs.get(), controller, map_inst.name, max_episodes=1)
+        # Simple loop to keep the game running without rendering
+        try:
+            while True:
+                controller.observe()
+                controller.step(1)
+                time.sleep(1/FPS)
+        except KeyboardInterrupt:
+            pass
         
     except KeyboardInterrupt:
         print("Interrupted.")
@@ -131,4 +138,4 @@ def main(unused_argv):
             proc.close()
 
 if __name__ == "__main__":
-    app.run(main)
+    main()

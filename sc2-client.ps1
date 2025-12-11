@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 
 param(
-    [int]$StartPort = 5000
+    [int]$StartPort = 5000,
+    [switch]$Play
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +37,13 @@ function Install-SC2 {
 function Install-Maps {
     param([string]$SC2Path)
     
+    # Check if Melee maps exist in current directory and move them
+    if (Test-Path "./Melee") {
+        Write-Host "Found Melee maps in current directory. Moving to StarCraft II..." -ForegroundColor Cyan
+        if (-not (Test-Path "$SC2Path/Maps")) { New-Item -ItemType Directory -Path "$SC2Path/Maps" | Out-Null }
+        Move-Item -Path "./Melee" -Destination "$SC2Path/Maps" -Force
+    }
+
     # 2. (Optional) Download map packs (e.g. ladder maps)
     if (-not (Test-Path "$SC2Path/Maps/Melee")) {
         Write-Host "Downloading default map pack..." -ForegroundColor Cyan
@@ -76,10 +84,15 @@ function Find-AvailablePort {
 }
 
 function Start-SC2 {
-    param([int]$Port, [string]$SC2Path)
+    param([int]$Port, [string]$SC2Path, [switch]$Play)
     
     # 3. Launch SC2 Server directly
-    Write-Host "Launching StarCraft II Server..." -ForegroundColor Cyan
+    Write-Host "Launching StarCraft II..." -ForegroundColor Cyan
+    if ($Play) {
+        Write-Host "Mode: Manual Play (No API)" -ForegroundColor Yellow
+    } else {
+        Write-Host "Mode: API Server (Port $Port)" -ForegroundColor Yellow
+    }
     
     $SC2_BINARY = Get-ChildItem -Path "$SC2Path/Versions" -Filter "SC2_x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
     
@@ -88,7 +101,7 @@ function Start-SC2 {
         exit 1
     }
     
-    Write-Host "Starting SC2 on port $Port..." -ForegroundColor Green
+    Write-Host "Starting SC2..." -ForegroundColor Green
     Write-Host "Using binary: $SC2_BINARY" -ForegroundColor Gray
     
     $dataDir = Resolve-Path $SC2Path
@@ -106,9 +119,17 @@ function Start-SC2 {
     
     Write-Host "Working Directory: $supportDir" -ForegroundColor Gray
 
-    # Launch SC2
+    if ($Play) {
+        # Play mode: Use windowed mode with specific dimensions, similar to pysc2
+        # We include tempDir to ensure a clean environment which often helps with launching directly
+        $arguments = @("-dataDir", "`"$dataDir`"", "-tempDir", "`"$tempDir`"", "-displayMode", "0", "-windowwidth", "1024", "-windowheight", "768", "-windowx", "50", "-windowy", "50")
+    } else {
+        # In API mode, we use a temp dir to isolate the instance
+        $arguments = @("-dataDir", "`"$dataDir`"", "-tempDir", "`"$tempDir`"", "-listen", "127.0.0.1", "-port", "$Port", "-displayMode", "0", "-windowwidth", "640", "-windowheight", "480", "-windowx", "50", "-windowy", "50")
+    }
+
     Start-Process -FilePath $SC2_BINARY `
-        -ArgumentList "-listen 127.0.0.1", "-port $Port", "-dataDir `"$dataDir`"", "-tempDir `"$tempDir`"", "-displayMode 0" `
+        -ArgumentList $arguments `
         -WorkingDirectory $supportDir
 }
 
@@ -121,7 +142,7 @@ function Main {
     $port = Find-AvailablePort -Port $StartPort
     Write-Host "Using port: $port" -ForegroundColor Cyan
     
-    Start-SC2 -Port $port -SC2Path $sc2Path
+    Start-SC2 -Port $port -SC2Path $sc2Path -Play $Play
 }
 
 # Run main function
