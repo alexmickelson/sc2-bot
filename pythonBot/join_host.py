@@ -32,7 +32,7 @@ def main(unused_argv):
     # Define interface format for human play (needs raw data)
     interface_format = features.AgentInterfaceFormat(
         feature_dimensions=features.Dimensions(screen=84, minimap=64),
-        rgb_dimensions=features.Dimensions(screen=256, minimap=128),
+        # rgb_dimensions=features.Dimensions(screen=256, minimap=128),
         action_space=actions.ActionSpace.RAW,
         use_raw_units=True,
         use_feature_units=True
