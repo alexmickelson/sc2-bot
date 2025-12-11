@@ -1,5 +1,13 @@
 import sys
 from absl import flags
+
+# Patch pysc2 for Python 3.13+ compatibility before importing
+try:
+    from patch_pysc2 import patch_colors_py
+    patch_colors_py()
+except Exception as e:
+    print(f"Warning: Could not apply patch: {e}")
+
 from pysc2.env import sc2_env
 from pysc2.lib import actions, features
 import random
