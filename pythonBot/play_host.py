@@ -61,6 +61,7 @@ def main(unused_argv):
             "map_data": map_inst.data(run_config),
             "game_version": proc.version.game_version,
             "realtime": FLAGS.realtime,
+            "remote": False,
             "ports": {
                 "server": {"game": ports[1], "base": ports[2]},
                 "client": {"game": ports[3], "base": ports[4]},
