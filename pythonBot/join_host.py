@@ -8,7 +8,7 @@ from absl import flags
 
 # Configuration Constants
 GAME_HOST = "144.17.71.47"  # Remote game server
-CONFIG_PORT = 14000
+CONFIG_PORT = 14381
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
 FPS = 22.4
@@ -27,6 +27,7 @@ from pysc2.env import sc2_env
 from pysc2.lib import renderer_human
 from pysc2.lib import features
 from pysc2.lib import actions
+from pysc2.lib import remote_controller
 from s2clientprotocol import sc2api_pb2 as sc_pb
 
 FLAGS = flags.FLAGS
@@ -118,12 +119,20 @@ def main():
         
         # Start local SC2 process
         print("Launching local StarCraft II client...")
+        # Bind to 0.0.0.0 so we can accept remote connections for the game
+        # But connect=False so we can manually connect to localhost
         proc = run_config.start(
             extra_ports=[settings["ports"]["client"]["game"], settings["ports"]["client"]["base"]],
             timeout_seconds=300,
-            host="127.0.0.1",
-            window_loc=(50, 50)
+            host="0.0.0.0",
+            window_loc=(50, 50),
+            connect=False
         )
+        
+        # Manually connect the controller to localhost
+        print("Connecting to SC2 API on localhost...")
+        proc._controller = remote_controller.RemoteController(
+            "127.0.0.1", proc._port, proc, timeout_seconds=300)
         
         # Join the game
         print("Joining multiplayer game...")
@@ -153,6 +162,7 @@ def main():
         join.options.show_placeholders = True
         
         controller = proc.controller
+        controller.save_map(settings["map_path"], settings["map_data"])
         controller.join_game(join)
         
         print("Successfully joined game! Running game loop...")

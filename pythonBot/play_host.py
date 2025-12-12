@@ -33,6 +33,7 @@ from pysc2 import run_configs
 from pysc2.env import lan_sc2_env
 from pysc2.env import sc2_env
 from pysc2.lib import renderer_human
+from pysc2.lib import remote_controller
 from s2clientprotocol import sc2api_pb2 as sc_pb
 
 FLAGS = flags.FLAGS
@@ -73,8 +74,16 @@ def main():
     try:
         # Start SC2 process
         print("Launching StarCraft II...")
+        # Bind to 0.0.0.0 so we can accept remote connections for the game
+        # But connect=False so we can manually connect to localhost (avoiding 0.0.0.0 connection issues)
         proc = run_config.start(extra_ports=ports[1:], timeout_seconds=300,
-                                host=SC2_HOST, window_loc=(50, 50))
+                                host="0.0.0.0", window_loc=(50, 50), connect=False)
+        
+        # Manually connect the controller to localhost
+        print("Connecting to SC2 API on localhost...")
+        proc._controller = remote_controller.RemoteController(
+            "127.0.0.1", proc._port, proc, timeout_seconds=300)
+            
         print(f"StarCraft II launched. Version: {proc.version.game_version}")
         
         tcp_port = ports[0]
