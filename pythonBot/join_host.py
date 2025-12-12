@@ -5,7 +5,6 @@ import socket
 import struct
 import json
 import os
-from absl import flags
 
 # Configuration Constants
 GAME_HOST = "144.17.71.47"  # Remote game server
@@ -30,9 +29,6 @@ from pysc2.lib import features
 from pysc2.lib import actions
 from pysc2.lib import remote_controller
 from s2clientprotocol import sc2api_pb2 as sc_pb
-
-FLAGS = flags.FLAGS
-FLAGS(sys.argv)
 
 def connect_to_host(ip, port):
     print(f"Attempting to connect to {ip}:{port}...")
