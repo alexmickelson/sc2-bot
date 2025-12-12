@@ -18,7 +18,7 @@ FPS = 22.4
 STEP_MUL = 1
 HOST = "0.0.0.0"
 # HOST = "127.0.0.1"
-CONFIG_PORT = 14381
+CONFIG_PORT = 14000
 
 # Patch pysc2 for Python 3.13+ compatibility
 try:
