@@ -5,10 +5,13 @@ import socket
 import struct
 import json
 import os
+import subprocess
 from absl import flags
 
 # Define command-line flags
 flags.DEFINE_string("game_host", "127.0.0.1", "Remote game server IP")
+flags.DEFINE_string("ssh_user", None, "SSH username for tunneling (if game_host is remote)")
+flags.DEFINE_string("ssh_key", None, "SSH private key path (optional)")
 flags.DEFINE_string("client_ip", "127.0.0.1", "This machine's IP")
 flags.DEFINE_integer("config_port", 14381, "Configuration port for connecting to host")
 flags.DEFINE_integer("local_game_port", 14390, "Local game port (0 to use host-assigned)")
@@ -121,6 +124,8 @@ def connect_to_host(ip, port, local_game_port, local_base_port):
 def main():
     # Use flag values if provided, otherwise use defaults
     game_host = FLAGS.game_host
+    ssh_user = FLAGS.ssh_user
+    ssh_key = FLAGS.ssh_key
     client_ip = FLAGS.client_ip
     config_port = FLAGS.config_port
     local_game_port = FLAGS.local_game_port
@@ -131,6 +136,79 @@ def main():
     step_mul = FLAGS.step_mul
     render = FLAGS.render
     
+    ssh_proc = None
+    
+    # SSH Tunneling Logic
+    if game_host != "127.0.0.1" and game_host != "localhost":
+        print(f"Remote host detected ({game_host}). Setting up SSH tunnel...")
+        
+        if not ssh_user:
+            print("Warning: --ssh_user not specified. Attempting to use current user for SSH.")
+            
+        # Calculate ports to forward
+        # We need to forward all 7 ports used by the host configuration
+        # 0: config, 1: server_game, 2: server_base, 3: client_host_game, 4: client_host_base
+        # 5: client_join_game, 6: client_join_base
+        
+        ports = [config_port + i for i in range(7)]
+        
+        # Construct SSH command
+        # -N: Do not execute a remote command (just forward ports)
+        # -L: Local forwarding (Local -> Remote) for server ports
+        # -R: Remote forwarding (Remote -> Local) for client ports (so host can connect to us)
+        
+        ssh_cmd = ["ssh", "-N"]
+        if ssh_user:
+            target = f"{ssh_user}@{game_host}"
+        else:
+            target = game_host
+            
+        if ssh_key:
+            ssh_cmd.extend(["-i", ssh_key])
+            
+        # Forward Config Port (L)
+        ssh_cmd.extend(["-L", f"{ports[0]}:127.0.0.1:{ports[0]}"])
+        
+        # Forward Server Ports (L) - Host's game ports
+        ssh_cmd.extend(["-L", f"{ports[1]}:127.0.0.1:{ports[1]}"])
+        ssh_cmd.extend(["-L", f"{ports[2]}:127.0.0.1:{ports[2]}"])
+        
+        # Forward Client Host Ports (L) - Host's client ports
+        ssh_cmd.extend(["-L", f"{ports[3]}:127.0.0.1:{ports[3]}"])
+        ssh_cmd.extend(["-L", f"{ports[4]}:127.0.0.1:{ports[4]}"])
+        
+        # Forward Client Join Ports (R) - Our ports, mapped back to remote
+        # If local ports are overridden, we should use those, but for simplicity in tunneling
+        # we assume the standard port range is used on both sides to avoid mapping confusion.
+        # If the user specified local_game_port, we might have a mismatch if we don't handle it.
+        # For now, we map the expected remote ports to the expected local ports.
+        
+        local_join_game = local_game_port if local_game_port != 0 else ports[5]
+        local_join_base = local_base_port if local_base_port != 0 else ports[6]
+        
+        # Remote side listens on ports[5]/[6] and forwards to our local_join_game/base
+        ssh_cmd.extend(["-R", f"{ports[5]}:127.0.0.1:{local_join_game}"])
+        ssh_cmd.extend(["-R", f"{ports[6]}:127.0.0.1:{local_join_base}"])
+        
+        ssh_cmd.append(target)
+        
+        print(f"Running SSH command: {' '.join(ssh_cmd)}")
+        try:
+            ssh_proc = subprocess.Popen(ssh_cmd)
+            print("Waiting 5 seconds for SSH tunnel to establish...")
+            time.sleep(5)
+            
+            if ssh_proc.poll() is not None:
+                print("SSH process exited prematurely. Check your SSH configuration/keys.")
+                return
+                
+            print("SSH tunnel established. Switching game_host to 127.0.0.1")
+            game_host = "127.0.0.1"
+            
+        except Exception as e:
+            print(f"Failed to start SSH tunnel: {e}")
+            return
+
     print(f"Connecting to game host at {game_host}:{config_port} from {client_ip}...")
     
     run_config = run_configs.get()
@@ -243,6 +321,13 @@ def main():
             tcp_conn.close()
         if proc:
             proc.close()
+        if ssh_proc:
+            print("Closing SSH tunnel...")
+            ssh_proc.terminate()
+            try:
+                ssh_proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                ssh_proc.kill()
 
 if __name__ == "__main__":
     main()
