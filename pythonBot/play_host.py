@@ -18,6 +18,8 @@ USER_RACE = "terran"
 FPS = 22.4
 STEP_MUL = 1
 HOST = "0.0.0.0"
+HOST_IP = "144.17.71.47"
+CLIENT_IP = "144.17.71.76"
 SC2_HOST = "127.0.0.1"
 # HOST = "127.0.0.1"
 CONFIG_PORT = 14381
@@ -124,6 +126,9 @@ def main():
         # Accept connection
         conn, addr = server_sock.accept()
         print(f"Opponent connected from {addr}!")
+        if addr[0] != CLIENT_IP:
+            print(f"Warning: Connection from unexpected IP {addr[0]}. Expected {CLIENT_IP}.")
+        
         tcp_conn = conn
         
         # Send map data
@@ -151,7 +156,7 @@ def main():
         
         join.race = sc2_env.Race[USER_RACE]
         join.player_name = USER_NAME
-        # join.host_ip = "144.17.71.47" # Don't set host_ip on the host side
+        join.host_ip = HOST_IP
         
         # Setup rendering options
         join.options.raw = True
@@ -164,7 +169,17 @@ def main():
         
         controller.join_game(join)
         
-        print("Game joined. Running loop...")
+        print("Game joined. Waiting for other players...")
+        
+        # Wait for game to start (all players joined)
+        while True:
+            if controller.status == sc_pb.Status.in_game:
+                print("Game started!")
+                break
+            controller.ping() # Keep connection alive and update status
+            time.sleep(0.5)
+        
+        print("Running loop...")
         
         # Simple loop to keep the game running without rendering
         try:

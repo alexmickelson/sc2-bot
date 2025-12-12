@@ -9,6 +9,7 @@ from absl import flags
 
 # Configuration Constants
 GAME_HOST = "144.17.71.47"  # Remote game server
+CLIENT_IP = "144.17.71.76"  # This machine's IP
 CONFIG_PORT = 14381
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
@@ -89,7 +90,7 @@ def connect_to_host(ip, port):
         return None, None
 
 def main():
-    print(f"Connecting to game host at {GAME_HOST}:{CONFIG_PORT}...")
+    print(f"Connecting to game host at {GAME_HOST}:{CONFIG_PORT} from {CLIENT_IP}...")
     
     run_config = run_configs.get()
     proc = None
@@ -152,7 +153,7 @@ def main():
         # Set player info
         join.race = sc2_env.Race[USER_RACE]
         join.player_name = USER_NAME
-        join.host_ip = GAME_HOST # Important for remote play
+        join.host_ip = GAME_HOST
         
         # Setup interface options
         join.options.raw = True
@@ -169,7 +170,17 @@ def main():
         print("Map saved. Joining game...")
         controller.join_game(join)
         
-        print("Successfully joined game! Running game loop...")
+        print("Successfully joined game! Waiting for game start...")
+        
+        # Wait for game to start (all players joined)
+        while True:
+            if controller.status == sc_pb.Status.in_game:
+                print("Game started!")
+                break
+            controller.ping() # Keep connection alive and update status
+            time.sleep(0.5)
+            
+        print("Running game loop...")
         
         # Game loop
         try:
