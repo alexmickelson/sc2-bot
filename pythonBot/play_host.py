@@ -4,6 +4,8 @@ import time
 import importlib
 import socket
 import portpicker
+import json
+import struct
 from absl import flags
 
 # Configuration Constants
@@ -35,9 +37,24 @@ from s2clientprotocol import sc2api_pb2 as sc_pb
 FLAGS = flags.FLAGS
 FLAGS(sys.argv)
 
+def write_tcp(conn, msg):
+    conn.sendall(struct.pack("@I", len(msg)))
+    conn.sendall(msg)
+
 def main():
     print(f"Starting Host on {HOST}:{CONFIG_PORT}...")
     
+    # Bind early to ensure port is open
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        server_sock.bind((HOST, CONFIG_PORT))
+        server_sock.listen(1)
+        print(f"Listening on {HOST}:{CONFIG_PORT}...")
+    except Exception as e:
+        print(f"Failed to bind to {HOST}:{CONFIG_PORT}: {e}")
+        return
+
     run_config = run_configs.get()
     map_inst = maps.get(MAP_NAME)
     
@@ -89,11 +106,19 @@ def main():
         print(f"Run on client: python join_host.py --host <HOST_IP> --config_port {tcp_port}")
         print("-" * 80)
         
-        # Start TCP Server to exchange settings with client
-        tcp_conn = lan_sc2_env.tcp_server(
-            lan_sc2_env.Addr(HOST, tcp_port), settings)
+        # Accept connection
+        conn, addr = server_sock.accept()
+        print(f"Opponent connected from {addr}!")
+        tcp_conn = conn
         
-        print("Opponent connected! Joining game...")
+        # Send map data
+        write_tcp(conn, settings["map_data"])
+        
+        # Send settings (excluding map_data to save space/complexity in JSON)
+        send_settings = {k: v for k, v in settings.items() if k != "map_data"}
+        write_tcp(conn, json.dumps(send_settings).encode())
+        
+        print("Settings sent. Joining game...")
         
         # Join Game
         join = sc_pb.RequestJoinGame()
@@ -135,6 +160,8 @@ def main():
     finally:
         if tcp_conn:
             tcp_conn.close()
+        if server_sock:
+            server_sock.close()
         if proc:
             proc.close()
 

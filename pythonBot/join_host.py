@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 import sys
 import time
+import socket
+import struct
+import json
 from absl import flags
 
 # Configuration Constants
-HOST = "127.0.0.1"
+GAME_HOST = "144.17.71.47"  # Remote game server
 CONFIG_PORT = 14381
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
@@ -20,53 +23,146 @@ except Exception as e:
     print(f"Warning: Could not apply patch: {e}")
 
 from pysc2 import run_configs
-from pysc2.env import lan_sc2_env
 from pysc2.env import sc2_env
 from pysc2.lib import renderer_human
 from pysc2.lib import features
 from pysc2.lib import actions
+from s2clientprotocol import sc2api_pb2 as sc_pb
 
 FLAGS = flags.FLAGS
 FLAGS(sys.argv)
 
-def main():
-    print(f"Connecting to Host at {HOST}:{CONFIG_PORT}...")
-    
-    # Define interface format for human play (needs raw data)
-    interface_format = features.AgentInterfaceFormat(
-        feature_dimensions=features.Dimensions(screen=84, minimap=64),
-        # rgb_dimensions=features.Dimensions(screen=256, minimap=128),
-        action_space=actions.ActionSpace.RAW,
-        use_raw_units=True,
-        use_feature_units=True
-    )
-
+def connect_to_host(ip, port):
+    print(f"Attempting to connect to {ip}:{port}...")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(5) # 5 second timeout
     try:
-        with lan_sc2_env.LanSC2Env(
-            host=HOST,
-            config_port=CONFIG_PORT,
-            race=sc2_env.Race[USER_RACE],
-            name=USER_NAME,
-            step_mul=STEP_MUL,
-            visualize=RENDER,
-            agent_interface_format=interface_format
-        ) as env:
+        sock.connect((ip, port))
+        print("Connected to host! Receiving settings...")
+        
+        # Read map data size
+        size_data = sock.recv(4)
+        if not size_data: raise Exception("Connection closed while reading map size")
+        size = struct.unpack("@I", size_data)[0]
+        
+        # Read map data
+        map_data = b""
+        while len(map_data) < size:
+            chunk = sock.recv(size - len(map_data))
+            if not chunk: raise Exception("Incomplete map data")
+            map_data += chunk
             
-            print("Connected to game! Running loop...")
+        # Read settings size
+        size_data = sock.recv(4)
+        if not size_data: raise Exception("Connection closed while reading settings size")
+        size = struct.unpack("@I", size_data)[0]
+        
+        # Read settings
+        settings_data = b""
+        while len(settings_data) < size:
+            chunk = sock.recv(size - len(settings_data))
+            if not chunk: raise Exception("Incomplete settings data")
+            settings_data += chunk
             
-            try:
-                while True:
-                    # Just step the environment to keep it alive
-                    # In a real bot, you would get observations and send actions here
-                    env.step([actions.FUNCTIONS.no_op()])
-                    time.sleep(1/FPS)
-            except KeyboardInterrupt:
-                pass
+        settings = json.loads(settings_data.decode())
+        settings["map_data"] = map_data
+        return sock, settings
+        
+    except Exception as e:
+        print(f"Connection failed: {e}")
+        return None, None
+
+def main():
+    print(f"Connecting to game host at {GAME_HOST}:{CONFIG_PORT}...")
+    
+    run_config = run_configs.get()
+    proc = None
+    tcp_conn = None
+    settings = None
+    
+    try:
+        # Get game settings from remote host via TCP
+        tcp_conn, settings = connect_to_host(GAME_HOST, CONFIG_PORT)
+        
+        if not settings:
+            print("Could not get settings from host. Trying to join with default ports...")
+            # Fallback: Assume default ports if handshake fails
+            # This assumes the host is running and waiting for join on these ports
+            # and NOT waiting for the TCP handshake (which is unlikely if it's play_host.py)
+            # But if the user is running a different host, this might work.
+            settings = {
+                "map_name": "Unknown",
+                "ports": {
+                    "server": {"game": CONFIG_PORT + 1, "base": CONFIG_PORT + 2},
+                    "client": {"game": CONFIG_PORT + 3, "base": CONFIG_PORT + 4},
+                }
+            }
+        else:
+            print(f"Received settings from host:")
+            print(f"  Map: {settings['map_name']}")
+            print(f"  Ports - Server: {settings['ports']['server']}, Client: {settings['ports']['client']}")
+        
+        # Start local SC2 process
+        print("Launching local StarCraft II client...")
+        proc = run_config.start(
+            extra_ports=[settings["ports"]["client"]["game"], settings["ports"]["client"]["base"]],
+            timeout_seconds=300,
+            host="127.0.0.1",
+            window_loc=(50, 50)
+        )
+        
+        # Join the game
+        print("Joining multiplayer game...")
+        join = sc_pb.RequestJoinGame()
+        join.shared_port = 0
+        
+        # Use the ports from the host
+        join.server_ports.game_port = settings["ports"]["server"]["game"]
+        join.server_ports.base_port = settings["ports"]["server"]["base"]
+        join.client_ports.add(
+            game_port=settings["ports"]["client"]["game"],
+            base_port=settings["ports"]["client"]["base"]
+        )
+        
+        # Set player info
+        join.race = sc2_env.Race[USER_RACE]
+        join.player_name = USER_NAME
+        join.host_ip = GAME_HOST # Important for remote play
+        
+        # Setup interface options
+        join.options.raw = True
+        join.options.score = True
+        join.options.raw_affects_selection = True
+        join.options.raw_crop_to_playable_area = True
+        join.options.show_cloaked = True
+        join.options.show_burrowed_shadows = True
+        join.options.show_placeholders = True
+        
+        controller = proc.controller
+        controller.join_game(join)
+        
+        print("Successfully joined game! Running game loop...")
+        
+        # Game loop
+        try:
+            while True:
+                controller.observe()
+                controller.step(STEP_MUL)
+                time.sleep(1/FPS)
+        except KeyboardInterrupt:
+            pass
             
     except KeyboardInterrupt:
         print("Interrupted.")
     except Exception as e:
         print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        if tcp_conn:
+            tcp_conn.close()
+        if proc:
+            proc.close()
 
 if __name__ == "__main__":
     main()

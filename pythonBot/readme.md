@@ -6,3 +6,5 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && /home/alex/projects/sc2/
 
 
 $env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 play_host.py
+
+$env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 join_host.py
