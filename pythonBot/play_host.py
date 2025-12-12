@@ -74,6 +74,7 @@ def main():
         print("Launching StarCraft II...")
         proc = run_config.start(extra_ports=ports[1:], timeout_seconds=300,
                                 host=HOST, window_loc=(50, 50))
+        print(f"StarCraft II launched. Version: {proc.version.game_version}")
         
         tcp_port = ports[0]
         settings = {
@@ -100,9 +101,10 @@ def main():
         controller = proc.controller
         controller.save_map(settings["map_path"], settings["map_data"])
         controller.create_game(create)
+        print("Game created successfully.")
         
         print("-" * 80)
-        print(f"Game Created. Waiting for opponent to join...")
+        print(f"Waiting for opponent to join on {HOST}:{CONFIG_PORT}...")
         print(f"Run on client: python join_host.py --host <HOST_IP> --config_port {tcp_port}")
         print("-" * 80)
         
@@ -112,10 +114,12 @@ def main():
         tcp_conn = conn
         
         # Send map data
+        print(f"Sending map data ({len(settings['map_data'])} bytes)...")
         write_tcp(conn, settings["map_data"])
         
         # Send settings (excluding map_data to save space/complexity in JSON)
         send_settings = {k: v for k, v in settings.items() if k != "map_data"}
+        print(f"Sending settings: {send_settings}")
         write_tcp(conn, json.dumps(send_settings).encode())
         
         print("Settings sent. Joining game...")

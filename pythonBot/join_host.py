@@ -35,15 +35,21 @@ FLAGS(sys.argv)
 def connect_to_host(ip, port):
     print(f"Attempting to connect to {ip}:{port}...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5) # 5 second timeout
+    sock.settimeout(120) # 120 second timeout to allow for host game creation
     try:
         sock.connect((ip, port))
-        print("Connected to host! Receiving settings...")
+        print("Connected to host! Waiting for settings (this may take a minute if host is starting)...")
         
         # Read map data size
-        size_data = sock.recv(4)
-        if not size_data: raise Exception("Connection closed while reading map size")
+        print("Waiting for map size...")
+        size_data = b""
+        while len(size_data) < 4:
+            chunk = sock.recv(4 - len(size_data))
+            if not chunk: raise Exception("Connection closed while reading map size")
+            size_data += chunk
+            
         size = struct.unpack("@I", size_data)[0]
+        print(f"Map size: {size} bytes. Receiving map data...")
         
         # Read map data
         map_data = b""
@@ -51,13 +57,20 @@ def connect_to_host(ip, port):
             chunk = sock.recv(size - len(map_data))
             if not chunk: raise Exception("Incomplete map data")
             map_data += chunk
+        print("Map data received.")
             
         # Read settings size
-        size_data = sock.recv(4)
-        if not size_data: raise Exception("Connection closed while reading settings size")
+        print("Waiting for settings size...")
+        size_data = b""
+        while len(size_data) < 4:
+            chunk = sock.recv(4 - len(size_data))
+            if not chunk: raise Exception("Connection closed while reading settings size")
+            size_data += chunk
+            
         size = struct.unpack("@I", size_data)[0]
         
         # Read settings
+        print(f"Settings size: {size} bytes. Receiving settings...")
         settings_data = b""
         while len(settings_data) < size:
             chunk = sock.recv(size - len(settings_data))
@@ -66,6 +79,7 @@ def connect_to_host(ip, port):
             
         settings = json.loads(settings_data.decode())
         settings["map_data"] = map_data
+        print("Settings received successfully.")
         return sock, settings
         
     except Exception as e:
