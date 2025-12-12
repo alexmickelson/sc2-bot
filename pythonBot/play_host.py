@@ -6,6 +6,7 @@ import socket
 import portpicker
 import json
 import struct
+import os
 from absl import flags
 
 # Configuration Constants
@@ -60,9 +61,9 @@ def main():
     run_config = run_configs.get()
     map_inst = maps.get(MAP_NAME)
     
-    # Reserve ports: 1 for config (already defined), 2 for server (game+base), 2 for client (game+base)
-    # We need 4 ports starting from config_port + 1
-    ports = [CONFIG_PORT + p for p in range(5)]
+    # Reserve ports: 1 for config, 2 for server, 2 for host client, 2 for join client
+    # We need 7 ports starting from config_port
+    ports = [CONFIG_PORT + p for p in range(7)]
     
     # Check if ports are free (simple check)
     # In a real scenario, we might want to use portpicker to find free ports dynamically
@@ -76,7 +77,8 @@ def main():
         print("Launching StarCraft II...")
         # Bind to 0.0.0.0 so we can accept remote connections for the game
         # But connect=False so we can manually connect to localhost (avoiding 0.0.0.0 connection issues)
-        proc = run_config.start(extra_ports=ports[1:], timeout_seconds=300,
+        # Bind server ports AND host client ports
+        proc = run_config.start(extra_ports=ports[1:5], timeout_seconds=300,
                                 host="0.0.0.0", window_loc=(50, 50), connect=False)
         
         # Manually connect the controller to localhost
@@ -89,14 +91,15 @@ def main():
         tcp_port = ports[0]
         settings = {
             "map_name": map_inst.name,
-            "map_path": map_inst.path,
+            "map_path": os.path.basename(map_inst.path),
             "map_data": map_inst.data(run_config),
             "game_version": proc.version.game_version,
             "realtime": REALTIME,
             "remote": False,
             "ports": {
                 "server": {"game": ports[1], "base": ports[2]},
-                "client": {"game": ports[3], "base": ports[4]},
+                "client_host": {"game": ports[3], "base": ports[4]},
+                "client_join": {"game": ports[5], "base": ports[6]},
             }
         }
         
@@ -139,8 +142,12 @@ def main():
         join.shared_port = 0 
         join.server_ports.game_port = settings["ports"]["server"]["game"]
         join.server_ports.base_port = settings["ports"]["server"]["base"]
-        join.client_ports.add(game_port=settings["ports"]["client"]["game"],
-                              base_port=settings["ports"]["client"]["base"])
+        
+        # Add client ports for Host (first) and Joiner (second)
+        join.client_ports.add(game_port=settings["ports"]["client_host"]["game"],
+                              base_port=settings["ports"]["client_host"]["base"])
+        join.client_ports.add(game_port=settings["ports"]["client_join"]["game"],
+                              base_port=settings["ports"]["client_join"]["base"])
         
         join.race = sc2_env.Race[USER_RACE]
         join.player_name = USER_NAME

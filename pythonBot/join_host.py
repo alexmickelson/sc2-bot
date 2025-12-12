@@ -4,6 +4,7 @@ import time
 import socket
 import struct
 import json
+import os
 from absl import flags
 
 # Configuration Constants
@@ -103,26 +104,25 @@ def main():
             print("Could not get settings from host. Trying to join with default ports...")
             # Fallback: Assume default ports if handshake fails
             # This assumes the host is running and waiting for join on these ports
-            # and NOT waiting for the TCP handshake (which is unlikely if it's play_host.py)
-            # But if the user is running a different host, this might work.
             settings = {
                 "map_name": "Unknown",
                 "ports": {
                     "server": {"game": CONFIG_PORT + 1, "base": CONFIG_PORT + 2},
-                    "client": {"game": CONFIG_PORT + 3, "base": CONFIG_PORT + 4},
+                    "client_host": {"game": CONFIG_PORT + 3, "base": CONFIG_PORT + 4},
+                    "client_join": {"game": CONFIG_PORT + 5, "base": CONFIG_PORT + 6},
                 }
             }
         else:
             print(f"Received settings from host:")
             print(f"  Map: {settings['map_name']}")
-            print(f"  Ports - Server: {settings['ports']['server']}, Client: {settings['ports']['client']}")
+            print(f"  Ports: {settings['ports']}")
         
         # Start local SC2 process
         print("Launching local StarCraft II client...")
         # Bind to 0.0.0.0 so we can accept remote connections for the game
         # But connect=False so we can manually connect to localhost
         proc = run_config.start(
-            extra_ports=[settings["ports"]["client"]["game"], settings["ports"]["client"]["base"]],
+            extra_ports=[settings["ports"]["client_join"]["game"], settings["ports"]["client_join"]["base"]],
             timeout_seconds=300,
             host="0.0.0.0",
             window_loc=(50, 50),
@@ -142,10 +142,12 @@ def main():
         # Use the ports from the host
         join.server_ports.game_port = settings["ports"]["server"]["game"]
         join.server_ports.base_port = settings["ports"]["server"]["base"]
-        join.client_ports.add(
-            game_port=settings["ports"]["client"]["game"],
-            base_port=settings["ports"]["client"]["base"]
-        )
+        
+        # Add client ports for Host (first) and Joiner (second)
+        join.client_ports.add(game_port=settings["ports"]["client_host"]["game"],
+                              base_port=settings["ports"]["client_host"]["base"])
+        join.client_ports.add(game_port=settings["ports"]["client_join"]["game"],
+                              base_port=settings["ports"]["client_join"]["base"])
         
         # Set player info
         join.race = sc2_env.Race[USER_RACE]
@@ -162,7 +164,9 @@ def main():
         join.options.show_placeholders = True
         
         controller = proc.controller
-        controller.save_map(settings["map_path"], settings["map_data"])
+        print(f"Saving map to {os.path.basename(settings['map_path'])}...")
+        controller.save_map(os.path.basename(settings["map_path"]), settings["map_data"])
+        print("Map saved. Joining game...")
         controller.join_game(join)
         
         print("Successfully joined game! Running game loop...")
