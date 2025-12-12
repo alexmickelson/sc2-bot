@@ -7,6 +7,7 @@ import portpicker
 import json
 import struct
 import os
+from absl import flags
 
 # Configuration Constants
 RENDER = False
@@ -35,6 +36,9 @@ from pysc2.env import sc2_env
 from pysc2.lib import renderer_human
 from pysc2.lib import remote_controller
 from s2clientprotocol import sc2api_pb2 as sc_pb
+
+FLAGS = flags.FLAGS
+FLAGS(sys.argv)
 
 def write_tcp(conn, msg):
     conn.sendall(struct.pack("@I", len(msg)))
