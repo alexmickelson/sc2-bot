@@ -7,14 +7,24 @@ import json
 import os
 from absl import flags
 
-# Configuration Constants
-GAME_HOST = "144.17.71.47"  # Remote game server
-CLIENT_IP = "144.17.71.76"  # This machine's IP
-CONFIG_PORT = 14381
-# Override ports for this client (set to 0 to use host-assigned ports)
-LOCAL_GAME_PORT = 14390
-LOCAL_BASE_PORT = 14391
+# Define command-line flags
+flags.DEFINE_string("game_host", "127.0.0.1", "Remote game server IP")
+flags.DEFINE_string("client_ip", "127.0.0.1", "This machine's IP")
+flags.DEFINE_integer("config_port", 14381, "Configuration port for connecting to host")
+flags.DEFINE_integer("local_game_port", 14390, "Local game port (0 to use host-assigned)")
+flags.DEFINE_integer("local_base_port", 14391, "Local base port (0 to use host-assigned)")
+flags.DEFINE_string("user_name", "JoinPlayer", "Player name")
+flags.DEFINE_string("user_race", "zerg", "Player race (terran/zerg/protoss)")
+flags.DEFINE_float("fps", 22.4, "Frames per second")
+flags.DEFINE_integer("step_mul", 1, "Step multiplier")
+flags.DEFINE_bool("render", False, "Enable rendering")
 
+# Configuration Constants (defaults, can be overridden by flags)
+GAME_HOST = "127.0.0.1"  # Remote game server
+CLIENT_IP = "127.0.0.1"  # This machine's IP
+CONFIG_PORT = 14381
+LOCAL_GAME_PORT = 14390  # Override ports for this client (set to 0 to use host-assigned ports)
+LOCAL_BASE_PORT = 14391
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
 FPS = 22.4
@@ -43,7 +53,7 @@ def write_tcp(conn, msg):
     conn.sendall(struct.pack("@I", len(msg)))
     conn.sendall(msg)
 
-def connect_to_host(ip, port):
+def connect_to_host(ip, port, local_game_port, local_base_port):
     print(f"Attempting to connect to {ip}:{port}...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(120) # 120 second timeout to allow for host game creation
@@ -92,10 +102,10 @@ def connect_to_host(ip, port):
         settings["map_data"] = map_data
         
         # Override ports if configured
-        if LOCAL_GAME_PORT != 0:
-            settings["ports"]["client_join"]["game"] = LOCAL_GAME_PORT
-        if LOCAL_BASE_PORT != 0:
-            settings["ports"]["client_join"]["base"] = LOCAL_BASE_PORT
+        if local_game_port != 0:
+            settings["ports"]["client_join"]["game"] = local_game_port
+        if local_base_port != 0:
+            settings["ports"]["client_join"]["base"] = local_base_port
             
         # Send back the ports we are using
         print(f"Sending client ports to host: {settings['ports']['client_join']}")
@@ -109,7 +119,19 @@ def connect_to_host(ip, port):
         return None, None
 
 def main():
-    print(f"Connecting to game host at {GAME_HOST}:{CONFIG_PORT} from {CLIENT_IP}...")
+    # Use flag values if provided, otherwise use defaults
+    game_host = FLAGS.game_host
+    client_ip = FLAGS.client_ip
+    config_port = FLAGS.config_port
+    local_game_port = FLAGS.local_game_port
+    local_base_port = FLAGS.local_base_port
+    user_name = FLAGS.user_name
+    user_race = FLAGS.user_race
+    fps = FLAGS.fps
+    step_mul = FLAGS.step_mul
+    render = FLAGS.render
+    
+    print(f"Connecting to game host at {game_host}:{config_port} from {client_ip}...")
     
     run_config = run_configs.get()
     proc = None
@@ -118,7 +140,7 @@ def main():
     
     try:
         # Get game settings from remote host via TCP
-        tcp_conn, settings = connect_to_host(GAME_HOST, CONFIG_PORT)
+        tcp_conn, settings = connect_to_host(game_host, config_port, local_game_port, local_base_port)
         
         if not settings:
             print("Could not get settings from host. Trying to join with default ports...")
@@ -127,9 +149,9 @@ def main():
             settings = {
                 "map_name": "Unknown",
                 "ports": {
-                    "server": {"game": CONFIG_PORT + 1, "base": CONFIG_PORT + 2},
-                    "client_host": {"game": CONFIG_PORT + 3, "base": CONFIG_PORT + 4},
-                    "client_join": {"game": CONFIG_PORT + 5, "base": CONFIG_PORT + 6},
+                    "server": {"game": config_port + 1, "base": config_port + 2},
+                    "client_host": {"game": config_port + 3, "base": config_port + 4},
+                    "client_join": {"game": config_port + 5, "base": config_port + 6},
                 }
             }
         else:
@@ -154,6 +176,10 @@ def main():
         proc._controller = remote_controller.RemoteController(
             "127.0.0.1", proc._port, proc, timeout_seconds=300)
         
+        controller = proc.controller
+        print(f"Saving map to {os.path.basename(settings['map_path'])}...")
+        controller.save_map(os.path.basename(settings["map_path"]), settings["map_data"])
+       
         # Join the game
         print("Joining multiplayer game...")
         join = sc_pb.RequestJoinGame()
@@ -170,9 +196,9 @@ def main():
                               base_port=settings["ports"]["client_join"]["base"])
         
         # Set player info
-        join.race = sc2_env.Race[USER_RACE]
-        join.player_name = USER_NAME
-        join.host_ip = GAME_HOST
+        join.race = sc2_env.Race[user_race]
+        join.player_name = user_name
+        join.host_ip = game_host
         
         # Setup interface options
         join.options.raw = True
@@ -183,10 +209,6 @@ def main():
         join.options.show_burrowed_shadows = True
         join.options.show_placeholders = True
         
-        controller = proc.controller
-        print(f"Saving map to {os.path.basename(settings['map_path'])}...")
-        controller.save_map(os.path.basename(settings["map_path"]), settings["map_data"])
-        print("Map saved. Joining game...")
         controller.join_game(join)
         
         print("Successfully joined game! Waiting for game start...")
@@ -205,8 +227,8 @@ def main():
         try:
             while True:
                 controller.observe()
-                controller.step(STEP_MUL)
-                time.sleep(1/FPS)
+                controller.step(step_mul)
+                time.sleep(1/fps)
         except KeyboardInterrupt:
             pass
             

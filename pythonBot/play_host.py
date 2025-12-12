@@ -9,7 +9,21 @@ import struct
 import os
 from absl import flags
 
-# Configuration Constants
+# Define command-line flags
+flags.DEFINE_bool("render", False, "Enable rendering")
+flags.DEFINE_bool("realtime", True, "Run game in realtime mode")
+flags.DEFINE_string("map_name", "Simple64", "Map to play on")
+flags.DEFINE_string("user_name", "HostPlayer", "Player name")
+flags.DEFINE_string("user_race", "terran", "Player race (terran/zerg/protoss)")
+flags.DEFINE_float("fps", 22.4, "Frames per second")
+flags.DEFINE_integer("step_mul", 1, "Step multiplier")
+flags.DEFINE_string("host", "0.0.0.0", "Host address to bind to")
+flags.DEFINE_string("host_ip", "127.0.0.1", "Host IP address")
+flags.DEFINE_string("client_ip", "127.0.0.1", "Expected client IP address")
+flags.DEFINE_string("sc2_host", "127.0.0.1", "SC2 host address")
+flags.DEFINE_integer("config_port", 14381, "Configuration port")
+
+# Configuration Constants (defaults, can be overridden by flags)
 RENDER = False
 REALTIME = True
 MAP_NAME = "Simple64"
@@ -18,10 +32,9 @@ USER_RACE = "terran"
 FPS = 22.4
 STEP_MUL = 1
 HOST = "0.0.0.0"
-HOST_IP = "144.17.71.47"
-CLIENT_IP = "144.17.71.76"
+HOST_IP = "127.0.0.1"
+CLIENT_IP = "127.0.0.1"
 SC2_HOST = "127.0.0.1"
-# HOST = "127.0.0.1"
 CONFIG_PORT = 14381
 
 # Patch pysc2 for Python 3.13+ compatibility
@@ -62,25 +75,39 @@ def read_tcp(conn):
     return data
 
 def main():
-    print(f"Starting Host on {HOST}:{CONFIG_PORT}...")
+    # Use flag values if provided, otherwise use defaults
+    render = FLAGS.render
+    realtime = FLAGS.realtime
+    map_name = FLAGS.map_name
+    user_name = FLAGS.user_name
+    user_race = FLAGS.user_race
+    fps = FLAGS.fps
+    step_mul = FLAGS.step_mul
+    host = FLAGS.host
+    host_ip = FLAGS.host_ip
+    client_ip = FLAGS.client_ip
+    sc2_host = FLAGS.sc2_host
+    config_port = FLAGS.config_port
+    
+    print(f"Starting Host on {host}:{config_port}...")
     
     # Bind early to ensure port is open
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        server_sock.bind((HOST, CONFIG_PORT))
+        server_sock.bind((host, config_port))
         server_sock.listen(1)
-        print(f"Listening on {HOST}:{CONFIG_PORT}...")
+        print(f"Listening on {host}:{config_port}...")
     except Exception as e:
-        print(f"Failed to bind to {HOST}:{CONFIG_PORT}: {e}")
+        print(f"Failed to bind to {host}:{config_port}: {e}")
         return
 
     run_config = run_configs.get()
-    map_inst = maps.get(MAP_NAME)
+    map_inst = maps.get(map_name)
     
     # Reserve ports: 1 for config, 2 for server, 2 for host client, 2 for join client
     # We need 7 ports starting from config_port
-    ports = [CONFIG_PORT + p for p in range(7)]
+    ports = [config_port + p for p in range(7)]
     
     # Check if ports are free (simple check)
     # In a real scenario, we might want to use portpicker to find free ports dynamically
@@ -111,7 +138,7 @@ def main():
             "map_path": os.path.basename(map_inst.path),
             "map_data": map_inst.data(run_config),
             "game_version": proc.version.game_version,
-            "realtime": REALTIME,
+            "realtime": realtime,
             "remote": False,
             "ports": {
                 "server": {"game": ports[1], "base": ports[2]},
@@ -123,7 +150,7 @@ def main():
         # Create Game
         print(f"Creating game on map {map_inst.name}...")
         create = sc_pb.RequestCreateGame(
-            realtime=settings["realtime"],
+            realtime=realtime,
             local_map=sc_pb.LocalMap(map_path=settings["map_path"]))
         create.player_setup.add(type=sc_pb.Participant) # Host
         create.player_setup.add(type=sc_pb.Participant) # Client
@@ -134,15 +161,15 @@ def main():
         print("Game created successfully.")
         
         print("-" * 80)
-        print(f"Waiting for opponent to join on {HOST}:{CONFIG_PORT}...")
-        print(f"Run on client: python join_host.py --host <HOST_IP> --config_port {tcp_port}")
+        print(f"Waiting for opponent to join on {host}:{config_port}...")
+        print(f"Run on client: python join_host.py --game_host <HOST_IP> --config_port {tcp_port}")
         print("-" * 80)
         
         # Accept connection
         conn, addr = server_sock.accept()
         print(f"Opponent connected from {addr}!")
-        if addr[0] != CLIENT_IP:
-            print(f"Warning: Connection from unexpected IP {addr[0]}. Expected {CLIENT_IP}.")
+        if addr[0] != client_ip:
+            print(f"Warning: Connection from unexpected IP {addr[0]}. Expected {client_ip}.")
         
         tcp_conn = conn
         
@@ -178,9 +205,9 @@ def main():
         join.client_ports.add(game_port=settings["ports"]["client_join"]["game"],
                               base_port=settings["ports"]["client_join"]["base"])
         
-        join.race = sc2_env.Race[USER_RACE]
-        join.player_name = USER_NAME
-        join.host_ip = HOST_IP
+        join.race = sc2_env.Race[user_race]
+        join.player_name = user_name
+        join.host_ip = host_ip
         
         # Setup rendering options
         join.options.raw = True
@@ -209,8 +236,8 @@ def main():
         try:
             while True:
                 controller.observe()
-                controller.step(1)
-                time.sleep(1/FPS)
+                controller.step(step_mul)
+                time.sleep(1/fps)
         except KeyboardInterrupt:
             pass
         
