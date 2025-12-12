@@ -17,8 +17,9 @@ USER_RACE = "terran"
 FPS = 22.4
 STEP_MUL = 1
 HOST = "0.0.0.0"
+SC2_HOST = "127.0.0.1"
 # HOST = "127.0.0.1"
-CONFIG_PORT = 14000
+CONFIG_PORT = 14381
 
 # Patch pysc2 for Python 3.13+ compatibility
 try:
@@ -73,7 +74,7 @@ def main():
         # Start SC2 process
         print("Launching StarCraft II...")
         proc = run_config.start(extra_ports=ports[1:], timeout_seconds=300,
-                                host=HOST, window_loc=(50, 50))
+                                host=SC2_HOST, window_loc=(50, 50))
         print(f"StarCraft II launched. Version: {proc.version.game_version}")
         
         tcp_port = ports[0]
