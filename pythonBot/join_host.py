@@ -8,7 +8,7 @@ from absl import flags
 
 # Configuration Constants
 GAME_HOST = "144.17.71.47"  # Remote game server
-CONFIG_PORT = 14381
+CONFIG_PORT = 14000
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
 FPS = 22.4
