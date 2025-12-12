@@ -144,6 +144,7 @@ def main():
         
         join.race = sc2_env.Race[USER_RACE]
         join.player_name = USER_NAME
+        join.host_ip = "144.17.71.47" # Set public IP so game knows where it is hosted
         
         # Setup rendering options
         join.options.raw = True
