@@ -11,6 +11,10 @@ from absl import flags
 GAME_HOST = "144.17.71.47"  # Remote game server
 CLIENT_IP = "144.17.71.76"  # This machine's IP
 CONFIG_PORT = 14381
+# Override ports for this client (set to 0 to use host-assigned ports)
+LOCAL_GAME_PORT = 14390
+LOCAL_BASE_PORT = 14391
+
 USER_NAME = "JoinPlayer"
 USER_RACE = "zerg"
 FPS = 22.4
@@ -34,6 +38,10 @@ from s2clientprotocol import sc2api_pb2 as sc_pb
 
 FLAGS = flags.FLAGS
 FLAGS(sys.argv)
+
+def write_tcp(conn, msg):
+    conn.sendall(struct.pack("@I", len(msg)))
+    conn.sendall(msg)
 
 def connect_to_host(ip, port):
     print(f"Attempting to connect to {ip}:{port}...")
@@ -82,6 +90,17 @@ def connect_to_host(ip, port):
             
         settings = json.loads(settings_data.decode())
         settings["map_data"] = map_data
+        
+        # Override ports if configured
+        if LOCAL_GAME_PORT != 0:
+            settings["ports"]["client_join"]["game"] = LOCAL_GAME_PORT
+        if LOCAL_BASE_PORT != 0:
+            settings["ports"]["client_join"]["base"] = LOCAL_BASE_PORT
+            
+        # Send back the ports we are using
+        print(f"Sending client ports to host: {settings['ports']['client_join']}")
+        write_tcp(sock, json.dumps(settings["ports"]["client_join"]).encode())
+        
         print("Settings received successfully.")
         return sock, settings
         

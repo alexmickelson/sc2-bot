@@ -46,6 +46,21 @@ def write_tcp(conn, msg):
     conn.sendall(struct.pack("@I", len(msg)))
     conn.sendall(msg)
 
+def read_tcp(conn):
+    size_data = b""
+    while len(size_data) < 4:
+        chunk = conn.recv(4 - len(size_data))
+        if not chunk: raise Exception("Connection closed while reading size")
+        size_data += chunk
+    size = struct.unpack("@I", size_data)[0]
+    
+    data = b""
+    while len(data) < size:
+        chunk = conn.recv(size - len(data))
+        if not chunk: raise Exception("Incomplete data")
+        data += chunk
+    return data
+
 def main():
     print(f"Starting Host on {HOST}:{CONFIG_PORT}...")
     
@@ -139,6 +154,15 @@ def main():
         send_settings = {k: v for k, v in settings.items() if k != "map_data"}
         print(f"Sending settings: {send_settings}")
         write_tcp(conn, json.dumps(send_settings).encode())
+        
+        # Wait for client to confirm ports
+        print("Waiting for client port confirmation...")
+        client_ports_data = read_tcp(conn)
+        client_ports = json.loads(client_ports_data.decode())
+        print(f"Client confirmed ports: {client_ports}")
+        
+        # Update settings with actual client ports
+        settings["ports"]["client_join"] = client_ports
         
         print("Settings sent. Joining game...")
         
