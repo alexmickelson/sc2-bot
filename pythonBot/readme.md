@@ -16,7 +16,7 @@ $env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 join_
 
 ```powershell
 # Host with custom settings (running on 144.17.71.47)
-$env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 play_host.py --host_ip "144.17.71.47" --client_ip "144.17.71.76" --map_name "AcropolisLE" --user_name "Player1" --user_race "zerg"
+$env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 play_host.py --host_ip "144.17.71.47" --client_ip "144.17.71.76" --map_name "Simple64" --user_name "Player1" --user_race "zerg"
 
 # Join with custom settings (running on 144.17.71.76, connecting to host)
 $env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="python"; uv run --python 3.11 join_host.py --game_host "144.17.71.47" --client_ip "144.17.71.76" --user_name "Player2" --user_race "protoss"
