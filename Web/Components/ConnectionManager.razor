@@ -1,6 +1,7 @@
 @using System.Net.WebSockets
 @using Web.Services
 @inject SC2Client SC2Client
+@implements IDisposable
 
 @if (SC2Client.ConnectionState != WebSocketState.Open)
 {
@@ -19,6 +20,7 @@
       }
     </div>
   </div>
+
 }
 
 @code {
@@ -32,6 +34,12 @@
       await ConnectToSC2();
     }
   }
+
+  public void Dispose()
+  {
+  }
+
+  private void Refresh() => InvokeAsync(StateHasChanged);
 
   private async Task ConnectToSC2()
   {

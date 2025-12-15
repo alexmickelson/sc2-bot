@@ -8,6 +8,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<SC2Client>();
+builder.Services.AddSingleton<LinuxHeadlessClientService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LinuxHeadlessClientService>());
 
 var app = builder.Build();
 

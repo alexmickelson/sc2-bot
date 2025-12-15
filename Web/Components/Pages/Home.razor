@@ -8,7 +8,14 @@
 
 <PageTitle>StarCraft II Bot Controller</PageTitle>
 
-<ConnectionManager />
+<div class="flex">
+    <div>
+        <ConnectionManager />
+    </div>
+    <div>
+        <HeadlessClientManager />
+    </div>
+</div>
 
 @if (SC2Client.ConnectionState == WebSocketState.Open)
 {

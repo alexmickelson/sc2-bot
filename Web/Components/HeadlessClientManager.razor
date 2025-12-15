@@ -1,0 +1,101 @@
+@using Web.Services
+@inject LinuxHeadlessClientService HeadlessService
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
+    <div class="p-4">
+        <h5 class="text-lg font-medium mb-2">Headless Client Manager</h5>
+        
+        @if (!HeadlessService.IsRunning)
+        {
+            <div class="grid grid-cols-1 gap-3 mb-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Executable Path</label>
+                    <input type="text" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           @bind="HeadlessService.ExecutablePath" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Data Directory</label>
+                    <input type="text" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           @bind="HeadlessService.DataDir" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">EGL Path</label>
+                    <input type="text" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           @bind="HeadlessService.EglPath" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Host</label>
+                        <input type="text" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                               @bind="HeadlessService.Host" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Port</label>
+                        <input type="number" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                               @bind="HeadlessService.Port" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Temp Directory</label>
+                    <input type="text" class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           @bind="HeadlessService.TempDir" />
+                </div>
+            </div>
+        }
+
+        <div class="flex items-center space-x-2 mb-3">
+            <div class="flex-1">
+                Status: 
+                <span class="@(HeadlessService.IsRunning ? "text-green-400" : "text-red-400")">
+                    @(HeadlessService.IsRunning ? "Running" : "Stopped")
+                </span>
+            </div>
+            @if (!HeadlessService.IsRunning)
+            {
+                <button class="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-sm" @onclick="HeadlessService.StartProcess">Start</button>
+            }
+            else
+            {
+                <button class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm" @onclick="HeadlessService.KillProcess">Stop</button>
+                <button class="px-3 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-white text-sm" @onclick="HeadlessService.RestartProcess">Restart</button>
+            }
+        </div>
+        
+        <div @ref="logContainer" class="bg-gray-900 p-2 rounded h-48 overflow-y-auto font-mono text-xs text-gray-300 whitespace-pre-wrap">@HeadlessService.Logs</div>
+    </div>
+</div>
+
+@code {
+    private ElementReference logContainer;
+
+    protected override void OnInitialized()
+    {
+        HeadlessService.OnStateChanged += Refresh;
+        HeadlessService.OnLogReceived += OnLog;
+    }
+
+    public void Dispose()
+    {
+        HeadlessService.OnStateChanged -= Refresh;
+        HeadlessService.OnLogReceived -= OnLog;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    private void OnLog(string msg) 
+    {
+        InvokeAsync(async () => 
+        {
+            StateHasChanged();
+            try
+            {
+                await JS.InvokeVoidAsync("scrollToBottom", logContainer);
+            }
+            catch
+            {
+                // Ignore JS errors during disposal/navigation
+            }
+        });
+    }
+}
