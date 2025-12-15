@@ -4,14 +4,14 @@
 
 @if (SC2Client.ConnectionState != WebSocketState.Open)
 {
-  <div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+  <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
     <div class="p-4">
       <h5 class="text-lg font-medium mb-2">Connection Status</h5>
       <p>
         Status: <span class="text-red-400">@SC2Client.ConnectionState</span>
       </p>
       <button
-        class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-blue-500 text-white hover:bg-blue-600"
+        class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-blue-500 text-blue-50 hover:bg-blue-600"
         @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:5000)</button>
       @if (!string.IsNullOrEmpty(errorMessage))
       {

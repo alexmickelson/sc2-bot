@@ -3,24 +3,30 @@
 @inject SC2Client SC2Client
 @implements IDisposable
 
-@if (SC2Client.CurrentStatus == Status.Launched || SC2Client.CurrentStatus == Status.Ended || SC2Client.CurrentStatus ==
-Status.Unknown || SC2Client.CurrentStatus == Status.InitGame)
+@if (CanInitializeGame)
 {
-  <div class="bg-gray-800/50 text-white shadow rounded-lg">
+  <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg">
     <div class="border-b border-gray-700">
-      <nav class="-mb-px flex" aria-label="Tabs">
-        <a href="#" class="@(activeTab == "create" ? "border-blue-500 text-blue-400" : "border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600") w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm no-underline" @onclick='() => activeTab = "create"' @onclick:preventDefault>
+      <div class="-mb-px flex" aria-label="Tabs">
+        <button class="tab @(activeTab == "create" ? "tab-active" : "tab-inactive")" @onclick='() => activeTab = "create"'>
           Create Game
-        </a>
-        <a href="#" class="@(activeTab == "join" ? "border-blue-500 text-blue-400" : "border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600") w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm no-underline" @onclick='() => activeTab = "join"' @onclick:preventDefault>
+        </button>
+        <button class="tab @(activeTab == "host" ? "tab-active" : "tab-inactive")" @onclick='() => activeTab = "host"'>
+          Host Game
+        </button>
+        <button class="tab @(activeTab == "join" ? "tab-active" : "tab-inactive")" @onclick='() => activeTab = "join"'>
           Join Multiplayer
-        </a>
-      </nav>
+        </button>
+      </div>
     </div>
     <div class="p-4">
       @if (activeTab == "create")
       {
         <CreateGame  />
+      }
+      else if (activeTab == "host")
+      {
+        <HostMultiplayerGame />
       }
       else
       {
@@ -32,6 +38,11 @@ Status.Unknown || SC2Client.CurrentStatus == Status.InitGame)
 
 @code {
   private string activeTab = "create";
+
+  private bool CanInitializeGame => SC2Client.CurrentStatus == Status.Launched ||
+                                    SC2Client.CurrentStatus == Status.Ended ||
+                                    SC2Client.CurrentStatus == Status.Unknown ||
+                                    SC2Client.CurrentStatus == Status.InitGame;
 
   protected override void OnInitialized()
   {

@@ -2,104 +2,127 @@
 @using Web.Services
 @inject SC2Client SC2Client
 
-<div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
-    <div class="p-4">
-        <h5 class="text-lg font-medium mb-2">Create Game</h5>
-
-        @if (isLoadingMaps)
-        {
-            <p>Loading maps...</p>
-        }
-        else
-        {
-            <div class="mb-3">
-                <label class="block text-sm font-medium text-gray-300 mb-1">Select Map</label>
-                <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="selectedMap">
-                    <option value="">-- Select a Map --</option>
-                    @foreach (var map in battleNetMaps)
+<div class="p-4">
+    @if (isLoadingMaps)
+    {
+        <p>Loading maps...</p>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-300 mb-1">Select Map</label>
+            <select
+                class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                @bind="selectedMap">
+                <option value="">-- Select a Map --</option>
+                @foreach (var map in battleNetMaps)
+                {
+                    <option value="@map">@map (BattleNet)</option>
+                }
+                @foreach (var map in localMaps)
+                {
+                    // Display relative path for readability, but value is absolute path
+                    var display = map;
+                    try
                     {
-                        <option value="@map">@map (BattleNet)</option>
-                    }
-                    @foreach (var map in localMaps)
-                    {
-                        // Display relative path for readability, but value is absolute path
-                        var display = map;
-                        try
+                        var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
+                        if (map.StartsWith(mapsDir))
                         {
-                            var mapsDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../StarCraftII/Maps"));
-                            if (map.StartsWith(mapsDir))
-                            {
-                                display = Path.GetRelativePath(mapsDir, map);
-                            }
+                            display = Path.GetRelativePath(mapsDir, map);
                         }
-                        catch { }
-
-                        <option value="@map">@display (Local)</option>
                     }
+                    catch { }
+
+                    <option value="@map">@display (Local)</option>
+                }
+            </select>
+        </div>
+
+        <hr class="my-4 border-gray-700" />
+        <h6 class="text-base font-medium mb-2">Game Settings</h6>
+
+        <label class="block text-sm font-medium text-gray-300 mb-1">My Race: </label>
+        <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
+
+        <div class="flex items-center mt-4">
+            <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700"
+                type="checkbox" @bind="realtime">
+            <label class="block text-sm font-medium text-gray-300 mb-0">Realtime Mode</label>
+        </div>
+
+        <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
+
+        <hr class="my-4 border-gray-700" />
+        <h6 class="text-base font-medium mb-2">Opponent Settings</h6>
+
+        <div class="flex flex-wrap -mx-3 mb-3">
+            <div class="w-full md:w-1/2 px-3">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Type</label>
+                <select
+                    class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    @bind="opponentType">
+                    <option value="@PlayerType.Computer">Computer</option>
+                    <option value="@PlayerType.Participant">Human (Multiplayer)</option>
                 </select>
             </div>
+        </div>
 
-            <hr class="my-4 border-gray-700" />
-            <h6 class="text-base font-medium mb-2">Game Settings</h6>
-
-            <label class="block text-sm font-medium text-gray-300 mb-1">My Race: </label>
-            <ButtonSelect TValue="Race" @bind-Value="myRace" Options="raceOptions" />
-
-            <div class="flex items-center mt-4">
-                <input class="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 mr-2 bg-gray-700" type="checkbox" @bind="realtime">
-                <label class="block text-sm font-medium text-gray-300 mb-0">Realtime Mode</label>
-            </div>
-
-            <InterfaceOptionsSelector Options="@InterfaceOptions" OnOptionsChanged="HandleOptionsChanged" />
-
-            <hr class="my-4 border-gray-700" />
-            <h6 class="text-base font-medium mb-2">Opponent Settings</h6>
-
+        @if (opponentType == PlayerType.Computer)
+        {
             <div class="flex flex-wrap -mx-3 mb-3">
                 <div class="w-full md:w-1/2 px-3">
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Type</label>
-                    <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="opponentType">
-                        <option value="@PlayerType.Computer">Computer</option>
-                        <option value="@PlayerType.Participant">Human (Multiplayer)</option>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Race</label>
+                    <ButtonSelect TValue="Race" @bind-Value="opponentRace" Options="raceOptions" />
+                </div>
+                <div class="w-full md:w-1/2 px-3">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Difficulty</label>
+                    <select
+                        class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        @bind="opponentDifficulty">
+                        <option value="@Difficulty.VeryEasy">Very Easy</option>
+                        <option value="@Difficulty.Easy">Easy</option>
+                        <option value="@Difficulty.Medium">Medium</option>
+                        <option value="@Difficulty.MediumHard">Medium Hard</option>
+                        <option value="@Difficulty.Hard">Hard</option>
+                        <option value="@Difficulty.Harder">Harder</option>
+                        <option value="@Difficulty.VeryHard">Very Hard</option>
+                        <option value="@Difficulty.CheatVision">Cheat Vision</option>
+                        <option value="@Difficulty.CheatMoney">Cheat Money</option>
+                        <option value="@Difficulty.CheatInsane">Cheat Insane</option>
                     </select>
                 </div>
             </div>
+        }
 
-            @if (opponentType == PlayerType.Computer)
+        <hr class="my-4 border-gray-700" />
+        <button
+            class="
+                px-4 py-2 rounded font-semibold transition-colors duration-200 
+                bg-green-800 text-green-50 hover:bg-green-700 disabled:opacity-50 
+                disabled:cursor-not-allowed mt-3 flex items-center"
+            @onclick="HandleCreateGame" disabled="@(string.IsNullOrEmpty(selectedMap) || isLoading)">
+            @if (isLoading)
             {
-                <div class="flex flex-wrap -mx-3 mb-3">
-                    <div class="w-full md:w-1/2 px-3">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Opponent Race</label>
-                        <ButtonSelect TValue="Race" @bind-Value="opponentRace" Options="raceOptions" />
-                    </div>
-                    <div class="w-full md:w-1/2 px-3">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Difficulty</label>
-                        <select class="block w-full px-3 py-2 text-base text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" @bind="opponentDifficulty">
-                            <option value="@Difficulty.VeryEasy">Very Easy</option>
-                            <option value="@Difficulty.Easy">Easy</option>
-                            <option value="@Difficulty.Medium">Medium</option>
-                            <option value="@Difficulty.MediumHard">Medium Hard</option>
-                            <option value="@Difficulty.Hard">Hard</option>
-                            <option value="@Difficulty.Harder">Harder</option>
-                            <option value="@Difficulty.VeryHard">Very Hard</option>
-                            <option value="@Difficulty.CheatVision">Cheat Vision</option>
-                            <option value="@Difficulty.CheatMoney">Cheat Money</option>
-                            <option value="@Difficulty.CheatInsane">Cheat Insane</option>
-                        </select>
-                    </div>
-                </div>
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-green-50" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <span>Creating Game...</span>
             }
+            else
+            {
+                <span>Create Game</span>
+            }
+        </button>
+    }
 
-            <hr class="my-4 border-gray-700" />
-            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed mt-3" @onclick="HandleCreateGame"
-                disabled="@string.IsNullOrEmpty(selectedMap)">Create Game</button>
-        }
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
-        }
-    </div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
+    }
 </div>
 
 @code {
@@ -109,6 +132,7 @@
     private string selectedMap = "";
     private string customMapPath = "Melee/Simple64.SC2Map";
     private bool isLoadingMaps = false;
+    private bool isLoading = false;
     private string errorMessage = "";
 
     // Game Settings
@@ -182,9 +206,12 @@
     private async Task LoadMapsFromApi()
     {
         var maps = await SC2Client.GetAvailableMapsAsync();
-        // SC2 API returns absolute paths usually, or relative to SC2 executable.
-        localMaps = maps.LocalMapPaths.ToList();
-        battleNetMaps = maps.BattlenetMapNames.ToList();
+        if (maps != null)
+        {
+            // SC2 API returns absolute paths usually, or relative to SC2 executable.
+            localMaps = maps.LocalMapPaths.ToList();
+            battleNetMaps = maps.BattlenetMapNames.ToList();
+        }
     }
 
     private void LoadMapsFromLocalDirectory()
@@ -211,7 +238,7 @@
 
     private async Task HandleCreateGame()
     {
-        errorMessage = "";
+        isLoading = true;
         var request = new Request();
         request.CreateGame = new RequestCreateGame();
 
@@ -261,6 +288,9 @@
             if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
             if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
         }
+
+        isLoading = false;
+
     }
 
     private async Task JoinGame()

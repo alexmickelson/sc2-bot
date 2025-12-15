@@ -4,29 +4,34 @@
 @inject SC2Client SC2Client
 @implements IDisposable
 
-<div class="bg-gray-800/50 text-white shadow rounded-lg mt-3">
+<div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mt-3">
     <div class="p-4">
         <h5 class="text-lg font-medium mb-2">Game State</h5>
         <div class="mb-3">
-            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-cyan-500 text-white hover:bg-cyan-600 mr-2" @onclick="GetObservation">Refresh State</button>
-            <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 @(isAutoRefreshing ? "bg-red-500 text-white hover:bg-red-600" : "bg-green-500 text-white hover:bg-green-600")" @onclick="ToggleAutoRefresh">
+            <button
+                class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-cyan-800 text-cyan-50 hover:bg-cyan-700 mr-2"
+                @onclick="GetObservation">Refresh State</button>
+            <button
+                class="px-4 py-2 rounded font-semibold transition-colors duration-200 @(isAutoRefreshing ? "bg-red-800 text-red-50 hover:bg-red-700" : "bg-green-800 text-green-50 hover:bg-green-700")"
+                @onclick="ToggleAutoRefresh">
                 @(isAutoRefreshing ? "Stop Auto-Refresh" : "Start Auto-Refresh")
             </button>
         </div>
-        
+
         @if (mostRecentObservation != null)
         {
             <p>Game Loop: @mostRecentObservation.GameLoop</p>
             <p>Minerals: @mostRecentObservation.PlayerCommon.Minerals</p>
             <p>Vespene: @mostRecentObservation.PlayerCommon.Vespene</p>
             <p>Supply: @mostRecentObservation.PlayerCommon.FoodUsed / @mostRecentObservation.PlayerCommon.FoodCap</p>
-            
-            <MapVisualizer MapState="@mostRecentObservation.RawData.MapState" Units="@mostRecentObservation.RawData.Units" />
-            
+
+            <MapVisualizer MapState="@mostRecentObservation.RawData.MapState"
+                Units="@mostRecentObservation.RawData.Units" />
+
             <ScoreDisplay Score="@mostRecentObservation.Score" />
-            
+
             <FeatureLayerDisplay Observation="@mostRecentObservation" />
-            
+
             <RenderedDisplay Observation="@mostRecentObservation" />
         }
         else
@@ -49,7 +54,7 @@
 
     private async Task GetObservation()
     {
-        try 
+        try
         {
             observation = await SC2Client.GetObservationAsync();
             mostRecentObservation = observation?.Observation ?? mostRecentObservation;
@@ -82,7 +87,7 @@
         while (!token.IsCancellationRequested)
         {
             await GetObservation();
-            try 
+            try
             {
                 await Task.Delay(100, token);
             }

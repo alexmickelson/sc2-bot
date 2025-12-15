@@ -8,8 +8,6 @@
 
 <PageTitle>StarCraft II Bot Controller</PageTitle>
 
-<h1>StarCraft II Bot Controller</h1>
-
 <ConnectionManager />
 
 @if (SC2Client.ConnectionState == WebSocketState.Open)
@@ -21,10 +19,28 @@
     }
     else if (SC2Client.CurrentStatus == Status.InGame)
     {
-        <div class="bg-gray-800/50 text-white shadow rounded-lg mb-3">
+        <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
             <div class="p-4">
                 <h5 class="text-lg font-medium mb-2">In Game</h5>
-                <button class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-red-500 text-white hover:bg-red-600" @onclick="LeaveGame">Leave Game</button>
+                <button
+                    class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-red-500 text-red-50 hover:bg-red-600 flex items-center"
+                    @onclick="LeaveGame" disabled="@isLeavingGame">
+                    @if (isLeavingGame)
+                    {
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-red-50" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span>Leaving...</span>
+                    }
+                    else
+                    {
+                        <span>Leave Game</span>
+                    }
+                </button>
             </div>
         </div>
     }
@@ -34,8 +50,23 @@
 
     <RequestHistory />
 }
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
 
 @code {
+
+    private bool isLeavingGame = false;
 
     protected override void OnInitialized()
     {
@@ -56,10 +87,19 @@
     }
     private async Task LeaveGame()
     {
-        var request = new Request { LeaveGame = new RequestLeaveGame() };
-        var response = await SC2Client.SendRequestAsync(request);
+        isLeavingGame = true;
+        try
+        {
+            var request = new Request { LeaveGame = new RequestLeaveGame() };
+            var response = await SC2Client.SendRequestAsync(request);
 
-        await SC2Client.PingAsync();
+            // Ping to update status to ensure we can start a new game
+            await SC2Client.PingAsync();
+        }
+        finally
+        {
+            isLeavingGame = false;
+        }
     }
     private async Task ListMaps()
     {
