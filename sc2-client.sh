@@ -2,6 +2,7 @@
 #!nix-shell -i bash -p wget unzip mesa-demos
 
 set -e
+set -x
 
 SC2_ZIP_URL="http://blzdistsc2-a.akamaihd.net/Linux/SC2.4.10.zip"
 SC2_ZIP="SC2.4.10.zip"
@@ -11,6 +12,11 @@ START_PORT=5000
 
 install_sc2() {
     # 1. Download headless StarCraft II Linux build
+    if [ -L "./StarCraftII" ]; then
+        echo "Removing invalid StarCraftII symlink..."
+        rm "./StarCraftII"
+    fi
+
     if [ ! -d "./StarCraftII" ]; then
         echo "Downloading StarCraft II headless build..."
         if [ ! -f "$SC2_ZIP" ]; then
@@ -18,8 +24,7 @@ install_sc2() {
         fi
 
         echo "Extracting..."
-        echo "password is iagreetotheeula"
-        unzip -o "$SC2_ZIP" -d .
+        unzip -P iagreetotheeula -n "$SC2_ZIP" -d .
         rm "$SC2_ZIP"
     else
         echo "StarCraft II already installed at ./StarCraftII"
