@@ -53,6 +53,21 @@ public class WebSocketService : IDisposable
         }
     }
 
+    public async Task DisconnectAsync()
+    {
+        if (_webSocket != null && _webSocket.State == WebSocketState.Open)
+        {
+            try 
+            {
+                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Ignore errors during close
+            }
+        }
+    }
+
     public void Dispose()
     {
         _cts?.Cancel();

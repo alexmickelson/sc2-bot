@@ -1,5 +1,6 @@
 @using Web.Services
 @inject LinuxHeadlessClientService HeadlessService
+@inject SC2Client SC2Client
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -58,8 +59,8 @@
             }
             else
             {
-                <button class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm" @onclick="HeadlessService.KillProcess">Stop</button>
-                <button class="px-3 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-white text-sm" @onclick="HeadlessService.RestartProcess">Restart</button>
+                <button class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm" @onclick="StopProcess">Stop</button>
+                <button class="px-3 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-white text-sm" @onclick="RestartProcess">Restart</button>
             }
         </div>
         
@@ -80,6 +81,18 @@
     {
         HeadlessService.OnStateChanged -= Refresh;
         HeadlessService.OnLogReceived -= OnLog;
+    }
+
+    private async Task StopProcess()
+    {
+        await SC2Client.DisconnectAsync();
+        HeadlessService.KillProcess();
+    }
+
+    private async Task RestartProcess()
+    {
+        await SC2Client.DisconnectAsync();
+        HeadlessService.RestartProcess();
     }
 
     private void Refresh() => InvokeAsync(StateHasChanged);

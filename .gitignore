@@ -43,3 +43,6 @@ observation.json
 
 node_modules/
 Web/wwwroot/app.css
+
+
+headlessclient.json

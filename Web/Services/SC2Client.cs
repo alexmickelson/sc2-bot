@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using Google.Protobuf;
 using SC2APIProtocol;
+using Web.Models;
 
 namespace Web.Services;
 
@@ -19,9 +20,9 @@ public class SC2Client : IDisposable
   public WebSocketState ConnectionState => _webSocketService.WebSocketState;
   public Status CurrentStatus { get; private set; } = Status.Unknown;
 
-  public SC2Client(string url = "ws://127.0.0.1:5000/sc2api")
+  public SC2Client(Web.Models.PlayerInfo playerInfo)
   {
-    _url = url;
+    _url = $"ws://127.0.0.1:{playerInfo.ClientPort}/sc2api";
   }
 
   public async Task ConnectAsync()
@@ -106,6 +107,12 @@ public class SC2Client : IDisposable
     var request = new Request { GameInfo = new RequestGameInfo() };
     var response = await SendRequestAsync(request);
     return response.GameInfo;
+  }
+
+  public async Task DisconnectAsync()
+  {
+    await _webSocketService.DisconnectAsync();
+    OnConnectionStateChanged?.Invoke();
   }
 
   public void Dispose()
