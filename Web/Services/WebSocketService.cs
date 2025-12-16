@@ -12,12 +12,31 @@ public class WebSocketService : IDisposable
 
   public async Task ConnectAsync(string url)
   {
-    if (_webSocket != null && _webSocket.State == WebSocketState.Open)
-      return;
+    await _lock.WaitAsync();
+    try
+    {
+      if (_webSocket != null)
+      {
+        if (_webSocket.State == WebSocketState.Open)
+          return;
 
-    _webSocket = new ClientWebSocket();
-    _cts = new CancellationTokenSource();
-    await _webSocket.ConnectAsync(new Uri(url), _cts.Token);
+        try
+        {
+          _webSocket.Dispose();
+        }
+        catch { }
+      }
+
+      _cts?.Dispose();
+
+      _webSocket = new ClientWebSocket();
+      _cts = new CancellationTokenSource();
+      await _webSocket.ConnectAsync(new Uri(url), _cts.Token);
+    }
+    finally
+    {
+      _lock.Release();
+    }
   }
 
   public async Task<byte[]> SendReceiveAsync(byte[] requestBytes)
@@ -65,7 +84,15 @@ public class WebSocketService : IDisposable
 
   public async Task DisconnectAsync()
   {
-    if (_webSocket != null && _webSocket.State == WebSocketState.Open)
+    _cts?.Cancel();
+    if (
+      _webSocket != null
+      && (
+        _webSocket.State == WebSocketState.Open
+        || _webSocket.State == WebSocketState.CloseReceived
+        || _webSocket.State == WebSocketState.CloseSent
+      )
+    )
     {
       try
       {

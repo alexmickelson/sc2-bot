@@ -1,6 +1,6 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client SC2Client
+@inject SC2Client sc2Client
 @implements IDisposable
 
 @if (CanInitializeGame)
@@ -8,7 +8,8 @@
   <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg">
     <div class="border-b border-gray-700">
       <div class="-mb-px flex" aria-label="Tabs">
-        <button class="tab @(activeTab == "create" ? "tab-active" : "tab-inactive")" @onclick='() => activeTab = "create"'>
+        <button class="tab @(activeTab == "create" ? "tab-active" : "tab-inactive")"
+          @onclick='() => activeTab = "create"'>
           Create Game
         </button>
         <button class="tab @(activeTab == "host" ? "tab-active" : "tab-inactive")" @onclick='() => activeTab = "host"'>
@@ -22,7 +23,7 @@
     <div class="p-4">
       @if (activeTab == "create")
       {
-        <CreateGame  />
+        <CreateGame />
       }
       else if (activeTab == "host")
       {
@@ -30,7 +31,7 @@
       }
       else
       {
-        <JoinMultiplayerGame  />
+        <JoinMultiplayerGame />
       }
     </div>
   </div>
@@ -39,14 +40,14 @@
 @code {
   private string activeTab = "create";
 
-  private bool CanInitializeGame => SC2Client.CurrentStatus == Status.Launched ||
-                                    SC2Client.CurrentStatus == Status.Ended ||
-                                    SC2Client.CurrentStatus == Status.Unknown ||
-                                    SC2Client.CurrentStatus == Status.InitGame;
+  private bool CanInitializeGame => sc2Client.CurrentStatus == Status.Launched ||
+  sc2Client.CurrentStatus == Status.Ended ||
+  sc2Client.CurrentStatus == Status.Unknown ||
+  sc2Client.CurrentStatus == Status.InitGame;
 
   protected override void OnInitialized()
   {
-    SC2Client.OnGameStateChanged += Refresh;
+    sc2Client.OnGameStateChanged += Refresh;
   }
 
   private void Refresh() => InvokeAsync(StateHasChanged);
@@ -54,6 +55,6 @@
 
   public void Dispose()
   {
-    SC2Client.OnGameStateChanged -= Refresh;
+    sc2Client.OnGameStateChanged -= Refresh;
   }
 }

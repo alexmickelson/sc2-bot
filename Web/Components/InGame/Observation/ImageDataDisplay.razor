@@ -6,24 +6,11 @@
 @if (ImageUrl != null)
 {
     <div class="mb-2">
-        <img src="@ImageUrl" 
-             draggable="false"
-             style="width: @(Data?.Size?.X ?? 100)px; 
-                    height: @(Data?.Size?.Y ?? 100)px; 
-                    border: 1px solid #555; 
-                    image-rendering: pixelated; 
-                    cursor: @(OnClick.HasDelegate ? "crosshair" : "default"); 
-                    user-select: none;" 
-             @onmousedown="HandleMouseDown"
-             @onmousemove="HandleMouseMove"
-             @onmouseup="HandleMouseUp"
-             @onmouseleave="HandleMouseUp" />
-        <div class="small text-muted">
-            @if (Data?.Size != null)
-            {
-                <span>@Data.Size.X x @Data.Size.Y (@Data.BitsPerPixel bpp)</span>
-            }
-        </div>
+        <img src="@ImageUrl" draggable="false"
+            class="border border-gray-600 select-none @(OnClick.HasDelegate ? "cursor-crosshair" : "cursor-default")" style="width: @(Data?.Size?.X ?? 100)px; 
+                                        height: @(Data?.Size?.Y ?? 100)px; 
+                                        image-rendering: pixelated;" @onmousedown="HandleMouseDown"
+            @onmousemove="HandleMouseMove" @onmouseup="HandleMouseUp" @onmouseleave="HandleMouseUp" />
     </div>
 }
 else if (Data != null)
@@ -87,7 +74,7 @@ else
     {
         if (Data != null && Data.Data != null && Data.Size != null && Data.Data.Length > 0)
         {
-            try 
+            try
             {
                 var bmpBytes = CreateBmp(Data);
                 var base64 = Convert.ToBase64String(bmpBytes);
@@ -115,7 +102,7 @@ else
         // BMP rows must be padded to 4 bytes
         int rowStride = ((width * bpp + 31) / 32) * 4;
         int pixelDataSize = rowStride * height;
-        
+
         // For 1bpp and 8bpp we need a palette
         int paletteSize = 0;
         if (bpp == 1) paletteSize = 2 * 4; // 2 colors * 4 bytes (BGRA)
@@ -136,7 +123,7 @@ else
             // 2. DIB Header (BITMAPINFOHEADER) (40 bytes)
             writer.Write(40); // Header size
             writer.Write(width); // Width
-            writer.Write(height); // Height (positive = bottom-up). 
+            writer.Write(height); // Height (positive = bottom-up).
             writer.Write((short)1); // Planes
             writer.Write((short)bpp); // Bits per pixel
             writer.Write(0); // Compression (BI_RGB = 0)

@@ -1,0 +1,41 @@
+@using SC2APIProtocol
+@using Web.Services
+@using Web.Components.InitGame
+@using Web.Components.InGame
+@inject ClientManager clientManager
+@implements IDisposable
+
+@if (sc2Client.CurrentStatus == Status.Launched
+|| sc2Client.CurrentStatus == Status.Ended
+|| sc2Client.CurrentStatus == Status.InitGame)
+{
+  <CreateGame Key=@Key />
+}
+else if (sc2Client.CurrentStatus == Status.InGame)
+{
+  <LeaveGame Key=@Key />
+}
+
+@code {
+  [Parameter]
+  public string Key { get; set; } = "";
+
+  private SC2Client sc2Client = default!;
+
+  protected override void OnInitialized()
+  {
+    var group = clientManager.GetOrCreateGroup(Key);
+    sc2Client = group.SC2Client;
+    sc2Client.OnGameStateChanged += Refresh;
+  }
+
+  public void Dispose()
+  {
+    if (sc2Client != null)
+    {
+      sc2Client.OnGameStateChanged -= Refresh;
+    }
+  }
+
+  private void Refresh() => InvokeAsync(StateHasChanged);
+}

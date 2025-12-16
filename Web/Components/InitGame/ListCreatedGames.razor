@@ -1,6 +1,6 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client SC2Client
+@inject SC2Client sc2Client
 @implements IDisposable
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
@@ -47,7 +47,7 @@
 
   protected override async Task OnInitializedAsync()
   {
-    SC2Client.OnGameStateChanged += Refresh;
+    sc2Client.OnGameStateChanged += Refresh;
     await UpdateState();
   }
 
@@ -62,7 +62,7 @@
 
   private async Task UpdateState()
   {
-    status = SC2Client.CurrentStatus;
+    status = sc2Client.CurrentStatus;
     gameExists = status == Status.InitGame || status == Status.InGame;
 
     if (gameExists)
@@ -70,7 +70,7 @@
       try
       {
         // GameInfo might fail in InitGame state, but let's try
-        gameInfo = await SC2Client.GetGameInfoAsync();
+        gameInfo = await sc2Client.GetGameInfoAsync();
       }
       catch
       {
@@ -86,6 +86,6 @@
 
   public void Dispose()
   {
-    SC2Client.OnGameStateChanged -= Refresh;
+    sc2Client.OnGameStateChanged -= Refresh;
   }
 }

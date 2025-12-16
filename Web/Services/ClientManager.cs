@@ -25,41 +25,37 @@ public class ClientManager : IDisposable
   public ClientManager()
   {
     // Initialize player1
-    var player1Info = new PlayerInfo(1, 5000, 5100);
-    var ws1 = new WebSocketService();
-    _groups["player1"] = new ClientGroup
-    {
-      Key = "player1",
-      PlayerInfo = player1Info,
-      WebSocketService = ws1,
-      SC2Client = new SC2Client(ws1, player1Info),
-      LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
-    };
-
-    // Initialize player2
-    var player2Info = new PlayerInfo(2, 6000, 6100);
-    var ws2 = new WebSocketService();
-    _groups["player2"] = new ClientGroup
-    {
-      Key = "player2",
-      PlayerInfo = player2Info,
-      WebSocketService = ws2,
-      SC2Client = new SC2Client(ws2, player2Info),
-      LinuxHeadlessClientService = new LinuxHeadlessClientService(player2Info),
-    };
+    // var player1Info = new PlayerInfo(1, 5000, 5100);
+    // var ws1 = new WebSocketService();
+    // _groups["player1"] = new ClientGroup
+    // {
+    //   Key = "player1",
+    //   PlayerInfo = player1Info,
+    //   WebSocketService = ws1,
+    //   SC2Client = new SC2Client(ws1, player1Info),
+    //   LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
+    // };
   }
 
-  public ClientGroup GetGroup(string key)
+  public ClientGroup GetOrCreateGroup(string key)
   {
     if (_groups.TryGetValue(key, out var group))
     {
       return group;
     }
-    throw new KeyNotFoundException($"Client group '{key}' not found.");
-  }
 
-  public ClientGroup Player1 => GetGroup("player1");
-  public ClientGroup Player2 => GetGroup("player2");
+    var player1Info = new PlayerInfo(1, 5000, 5100);
+    var ws1 = new WebSocketService();
+    _groups[key] = new ClientGroup
+    {
+      Key = key,
+      PlayerInfo = player1Info,
+      WebSocketService = ws1,
+      SC2Client = new SC2Client(ws1, player1Info),
+      LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
+    };
+    return _groups[key];
+  }
 
   public void Dispose()
   {

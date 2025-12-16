@@ -1,6 +1,6 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client SC2Client
+@inject ClientManager clientManager
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mt-3">
     <div class="p-4">
@@ -28,7 +28,7 @@
                     // If we can't get FeatureLayer size here easily, we might need to pass it or assume 64.
                     // Let's assume 64 for now as it's the most common default for bots.
                     double scale = 64.0 / (double)Math.Max(1, Observation.RenderData.Minimap.Size?.X ?? 1);
-                    
+
                     <ImageDataDisplay Data="@Observation.RenderData.Minimap" OnClick="OnMinimapClick" Scale="@scale" />
                 }
                 else
@@ -45,13 +45,22 @@
 </div>
 
 @code {
+    [Parameter] public string Key { get; set; } = "";
     [Parameter] public SC2APIProtocol.Observation? Observation { get; set; }
+
+    private SC2Client sc2Client = default!;
+
+    protected override void OnInitialized()
+    {
+        var group = clientManager.GetOrCreateGroup(Key);
+        sc2Client = group.SC2Client;
+    }
 
     private async Task OnMinimapClick((int X, int Y) coords)
     {
         try
         {
-            await SC2Client.MoveCameraAsync(coords.X, coords.Y);
+            await sc2Client.MoveCameraAsync(coords.X, coords.Y);
         }
         catch (Exception ex)
         {

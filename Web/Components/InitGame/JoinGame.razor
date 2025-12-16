@@ -1,6 +1,6 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client SC2Client
+@inject SC2Client sc2Client
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
   <div class="p-4">
@@ -92,7 +92,7 @@
         request.ServerPorts = new PortSet { GamePort = 5000, BasePort = 5001 };
       }
 
-      var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
+      var response = await sc2Client.SendRequestAsync(new Request { JoinGame = request });
 
       if (response.Status == Status.InGame)
       {

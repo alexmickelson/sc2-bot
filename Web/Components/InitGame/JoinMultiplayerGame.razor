@@ -1,6 +1,6 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client SC2Client
+@inject SC2Client sc2Client
 
 <div class="p-4">
   <div class="mb-3">
@@ -118,7 +118,7 @@
       // But wait, RequestJoinGame is sent to the LOCAL SC2 client.
       // The LOCAL SC2 client then connects to the HOST IP.
 
-      var response = await SC2Client.SendRequestAsync(new Request { JoinGame = request });
+      var response = await sc2Client.SendRequestAsync(new Request { JoinGame = request });
 
       if (response.Status == Status.InGame)
       {

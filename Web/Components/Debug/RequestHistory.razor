@@ -1,146 +1,147 @@
 @using SC2APIProtocol
 @using Web.Services
 @using System.Text.Json
-@inject SC2Client SC2Client
+@inject ClientManager clientManager
 @inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mt-3">
-    <div class="px-4 py-3 border-b border-gray-700 font-medium">
-        Request/Response History (@SC2Client.History.Count)
-    </div>
-    <div class="p-0">
-        <div class="divide-y divide-gray-700" style="max-height: 500px; overflow-y: auto;">
-            @foreach (var item in SC2Client.History.AsEnumerable().Reverse())
-            {
-                var requestId = item.Request.Id;
-                var requestType = GetRequestType(item.Request);
-                var status = item.Response.Status;
-                var timestamp = item.Timestamp.ToString("HH:mm:ss.fff");
+  <div class="px-4 py-3 border-b border-gray-700 font-medium">
+    Request/Response History (@sc2Client.History.Count)
+  </div>
+  <div class="p-0">
+    <div class="divide-y divide-gray-700" style="max-height: 500px; overflow-y: auto;">
+      @foreach (var item in sc2Client.History.AsEnumerable().Reverse())
+      {
+        var requestId = item.Request.Id;
+        var requestType = GetRequestType(item.Request);
+        var status = item.Response.Status;
+        var timestamp = item.Timestamp.ToString("HH:mm:ss.fff");
 
-                <div class="p-4">
-                    <div class="flex justify-between items-center cursor-pointer" @onclick="() => ToggleDetails(item)">
-                        <div>
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-200 mr-2">@timestamp</span>
-                            <strong>@requestType</strong>
-                        </div>
-                        <div>
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetStatusBadgeClass(status)">@status</span>
-                        </div>
-                    </div>
+        <div class="p-4">
+          <div class="flex justify-between items-center cursor-pointer" @onclick="() => ToggleDetails(item)">
+            <div>
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-200 mr-2">@timestamp</span>
+              <strong>@requestType</strong>
+            </div>
+            <div>
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetStatusBadgeClass(status)">@status</span>
+            </div>
+          </div>
 
-                    @if (expandedItems.Contains(item))
-                    {
-                        <div class="mt-2 border-t border-gray-700 pt-2">
-                            <div class="flex flex-wrap -mx-3">
-                                <div class="w-full md:w-1/2 px-3">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <h6 class="m-0 font-medium">Request</h6>
-                                        <button
-                                            class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
-                                            @onclick="() => CopyToClipboard(item.Request)"
-                                            @onclick:stopPropagation="true">Copy</button>
-                                    </div>
-                                    <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
-                                        style="max-height: 300px;">@JsonSerializer.Serialize(item.Request, jsonOptions)</pre>
-                                </div>
-                                <div class="w-full md:w-1/2 px-3">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <h6 class="m-0 font-medium">Response</h6>
-                                        <button
-                                            class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
-                                            @onclick="() => CopyToClipboard(item.Response)"
-                                            @onclick:stopPropagation="true">Copy</button>
-                                    </div>
-                                    <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
-                                        style="max-height: 300px;">@JsonSerializer.Serialize(item.Response, jsonOptions)</pre>
-                                </div>
-                            </div>
-                        </div>
-                    }
+          @if (expandedItems.Contains(item))
+          {
+            <div class="mt-2 border-t border-gray-700 pt-2">
+              <div class="flex flex-wrap -mx-3">
+                <div class="w-full md:w-1/2 px-3">
+                  <div class="flex justify-between items-center mb-1">
+                    <h6 class="m-0 font-medium">Request</h6>
+                    <button
+                      class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
+                      @onclick="() => CopyToClipboard(item.Request)" @onclick:stopPropagation="true">Copy</button>
+                  </div>
+                  <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
+                    style="max-height: 300px;">@JsonSerializer.Serialize(item.Request, jsonOptions)</pre>
                 </div>
-            }
+                <div class="w-full md:w-1/2 px-3">
+                  <div class="flex justify-between items-center mb-1">
+                    <h6 class="m-0 font-medium">Response</h6>
+                    <button
+                      class="px-2 py-1 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
+                      @onclick="() => CopyToClipboard(item.Response)" @onclick:stopPropagation="true">Copy</button>
+                  </div>
+                  <pre class="bg-gray-900 text-gray-300 p-2 text-xs overflow-auto rounded"
+                    style="max-height: 300px;">@JsonSerializer.Serialize(item.Response, jsonOptions)</pre>
+                </div>
+              </div>
+            </div>
+          }
         </div>
+      }
     </div>
+  </div>
 </div>
 
 @code {
-    private HashSet<RequestResponsePair> expandedItems = new();
-    private JsonSerializerOptions jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+  [Parameter]
+  public string Key { get; set; } = "";
 
-    protected override void OnInitialized()
-    {
-        SC2Client.OnHistoryUpdated += HandleHistoryUpdate;
-    }
+  private SC2Client sc2Client = default!;
+  private HashSet<RequestResponsePair> expandedItems = new();
+  private JsonSerializerOptions jsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
-    private void HandleHistoryUpdate()
-    {
-        InvokeAsync(StateHasChanged);
-    }
+  protected override void OnInitialized()
+  {
+    var group = clientManager.GetOrCreateGroup(Key);
+    sc2Client = group.SC2Client;
+    sc2Client.OnHistoryUpdated += Refresh;
+  }
 
-    private async Task CopyToClipboard(object obj)
-    {
-        var json = JsonSerializer.Serialize(obj, jsonOptions);
-        await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", json);
-    }
+  private void Refresh() => InvokeAsync(StateHasChanged);
 
-    private void ToggleDetails(RequestResponsePair item)
-    {
-        if (expandedItems.Contains(item))
-        {
-            expandedItems.Remove(item);
-        }
-        else
-        {
-            expandedItems.Add(item);
-        }
-    }
+  private async Task CopyToClipboard(object obj)
+  {
+    var json = JsonSerializer.Serialize(obj, jsonOptions);
+    await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", json);
+  }
 
-    private string GetRequestType(Request request)
+  private void ToggleDetails(RequestResponsePair item)
+  {
+    if (expandedItems.Contains(item))
     {
-        // Determine the type of request based on which field is set
-        if (request.CreateGame != null) return "CreateGame";
-        if (request.JoinGame != null) return "JoinGame";
-        if (request.RestartGame != null) return "RestartGame";
-        if (request.StartReplay != null) return "StartReplay";
-        if (request.LeaveGame != null) return "LeaveGame";
-        if (request.QuickSave != null) return "QuickSave";
-        if (request.QuickLoad != null) return "QuickLoad";
-        if (request.Quit != null) return "Quit";
-        if (request.GameInfo != null) return "GameInfo";
-        if (request.Observation != null) return "Observation";
-        if (request.Action != null) return "Action";
-        if (request.ObsAction != null) return "ObsAction";
-        if (request.Step != null) return "Step";
-        if (request.Data != null) return "Data";
-        if (request.Query != null) return "Query";
-        if (request.SaveReplay != null) return "SaveReplay";
-        if (request.ReplayInfo != null) return "ReplayInfo";
-        if (request.AvailableMaps != null) return "AvailableMaps";
-        if (request.SaveMap != null) return "SaveMap";
-        if (request.MapCommand != null) return "MapCommand";
-        if (request.Ping != null) return "Ping";
-        if (request.Debug != null) return "Debug";
-        return "Unknown";
+      expandedItems.Remove(item);
     }
+    else
+    {
+      expandedItems.Add(item);
+    }
+  }
 
-    private string GetStatusBadgeClass(Status status)
-    {
-        return status switch
-        {
-            Status.Launched => "bg-cyan-500 text-cyan-50",
-            Status.InitGame => "bg-blue-500 text-blue-50",
-            Status.InGame => "bg-green-500 text-green-50",
-            Status.Ended => "bg-red-500 text-red-50",
-            Status.Quit => "bg-gray-800 text-gray-50",
-            _ => "bg-gray-500 text-gray-50"
-        };
-    }
+  private string GetRequestType(Request request)
+  {
+    // Determine the type of request based on which field is set
+    if (request.CreateGame != null) return "CreateGame";
+    if (request.JoinGame != null) return "JoinGame";
+    if (request.RestartGame != null) return "RestartGame";
+    if (request.StartReplay != null) return "StartReplay";
+    if (request.LeaveGame != null) return "LeaveGame";
+    if (request.QuickSave != null) return "QuickSave";
+    if (request.QuickLoad != null) return "QuickLoad";
+    if (request.Quit != null) return "Quit";
+    if (request.GameInfo != null) return "GameInfo";
+    if (request.Observation != null) return "Observation";
+    if (request.Action != null) return "Action";
+    if (request.ObsAction != null) return "ObsAction";
+    if (request.Step != null) return "Step";
+    if (request.Data != null) return "Data";
+    if (request.Query != null) return "Query";
+    if (request.SaveReplay != null) return "SaveReplay";
+    if (request.ReplayInfo != null) return "ReplayInfo";
+    if (request.AvailableMaps != null) return "AvailableMaps";
+    if (request.SaveMap != null) return "SaveMap";
+    if (request.MapCommand != null) return "MapCommand";
+    if (request.Ping != null) return "Ping";
+    if (request.Debug != null) return "Debug";
+    return "Unknown";
+  }
 
-    public void Dispose()
+  private string GetStatusBadgeClass(Status status)
+  {
+    return status switch
     {
-        SC2Client.OnHistoryUpdated -= HandleHistoryUpdate;
-    }
+      Status.Launched => "bg-cyan-500 text-cyan-50",
+      Status.InitGame => "bg-blue-500 text-blue-50",
+      Status.InGame => "bg-green-500 text-green-50",
+      Status.Ended => "bg-red-500 text-red-50",
+      Status.Quit => "bg-gray-800 text-gray-50",
+      _ => "bg-gray-500 text-gray-50"
+    };
+  }
+
+  public void Dispose()
+  {
+    sc2Client.OnHistoryUpdated -= Refresh;
+  }
 }

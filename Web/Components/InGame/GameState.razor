@@ -1,7 +1,10 @@
 @using SC2APIProtocol
 @using Web.Services
 @using System.Threading
-@inject SC2Client SC2Client
+@using Web.Components.InGame.Map
+@using Web.Components.InGame.Observation
+@using Web.Components.InGame
+@inject ClientManager clientManager
 @implements IDisposable
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mt-3">
@@ -32,7 +35,7 @@
 
             <FeatureLayerDisplay Observation="@mostRecentObservation" />
 
-            <RenderedDisplay Observation="@mostRecentObservation" />
+            <RenderedDisplay Observation="@mostRecentObservation" Key=@Key />
         }
         else
         {
@@ -42,6 +45,10 @@
 </div>
 
 @code {
+    [Parameter]
+    public string Key { get; set; } = "";
+
+    private SC2Client sc2Client = default!;
     private ResponseObservation? observation;
     private SC2APIProtocol.Observation? mostRecentObservation;
     private bool isAutoRefreshing = false;
@@ -49,14 +56,15 @@
 
     protected override void OnInitialized()
     {
-        // Optionally fetch initial state
+        var group = clientManager.GetOrCreateGroup(Key);
+        sc2Client = group.SC2Client;
     }
 
     private async Task GetObservation()
     {
         try
         {
-            observation = await SC2Client.GetObservationAsync();
+            observation = await sc2Client.GetObservationAsync();
             mostRecentObservation = observation?.Observation ?? mostRecentObservation;
             await InvokeAsync(StateHasChanged);
         }

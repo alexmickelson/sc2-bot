@@ -3,26 +3,64 @@
 @using System.Net.WebSockets
 @using Web.Services
 @using Web.Components.InitGame
-@inject SC2Client SC2Client
 @rendermode InteractiveServer
 
 <PageTitle>StarCraft II Bot Controller</PageTitle>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <NavLink href="play-solo"
+        class="cursor-pointer block p-6 bg-gray-800/50 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors text-center group">
+        <div class="mb-4 text-blue-400 group-hover:text-blue-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+        </div>
+        <h5 class="mb-2 text-2xl font-bold tracking-tight text-white">Play Solo</h5>
+        <p class="font-normal text-gray-400">Play against a computer opponent</p>
+    </NavLink>
 
-<div class="flex">
+    <NavLink href="host-game"
+        class="cursor-pointer block p-6 bg-gray-800/50 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors text-center group">
+        <div class="mb-4 text-green-400 group-hover:text-green-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+        </div>
+        <h5 class="mb-2 text-2xl font-bold tracking-tight text-white">Host Game</h5>
+        <p class="font-normal text-gray-400">Host a game for others to join</p>
+    </NavLink>
+
+    <NavLink href="join-game"
+        class="cursor-pointer block p-6 bg-gray-800/50 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors text-center group">
+        <div class="mb-4 text-purple-400 group-hover:text-purple-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+        </div>
+        <h5 class="mb-2 text-2xl font-bold tracking-tight text-white">Join Game</h5>
+        <p class="font-normal text-gray-400">Join a multiplayer game</p>
+    </NavLink>
+</div>
+@* <div class="flex">
     <div>
         <ConnectionManager />
     </div>
     <div>
         <HeadlessClientManager />
     </div>
-</div>
+</div> *@
 
-@if (SC2Client.ConnectionState == WebSocketState.Open)
+@* @if (SC2Client.ConnectionState == WebSocketState.Open)
 {
     if (SC2Client.CurrentStatus == Status.Launched || SC2Client.CurrentStatus == Status.Ended || SC2Client.CurrentStatus ==
     Status.InitGame)
     {
-        <GameInit />
+        
     }
     else if (SC2Client.CurrentStatus == Status.InGame)
     {
@@ -56,21 +94,8 @@
     <GameState />
 
     <RequestHistory />
-}
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
+} *@
+@* 
 @code {
 
     private bool isLeavingGame = false;
@@ -112,4 +137,4 @@
     {
         var maps = await SC2Client.GetAvailableMapsAsync();
     }
-}
+} *@
