@@ -1,0 +1,15 @@
+@using Web.Components.InitConnection
+
+<div class="flex gap-4">
+  <div class="">
+    <HeadlessClientManager Key="@Key" />
+  </div>
+  <div class="">
+    <ConnectionManager Key="@Key" />
+  </div>
+</div>
+
+@code {
+  [Parameter]
+  public string Key { get; set; } = "";
+}

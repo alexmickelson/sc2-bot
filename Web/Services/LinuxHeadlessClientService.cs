@@ -5,7 +5,7 @@ using Web.Models;
 
 namespace Web.Services;
 
-public class LinuxHeadlessClientService : IHostedService, IDisposable
+public class LinuxHeadlessClientService : IDisposable
 {
   private Process? _process;
   private readonly StringBuilder _logBuffer = new();
@@ -53,7 +53,7 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
 
     ExecutablePath = Path.Combine(rootDir, "StarCraftII/Versions/Base75689/SC2_x64");
     DataDir = Path.Combine(rootDir, "StarCraftII");
-    EglPath = "/nix/store/z88avybj8n2svi9wv1hl937k2k3mbc2d-libglvnd-1.7.0/lib/libEGL.so";
+    EglPath = FindLibEGL();
 
     Port = playerInfo.ClientPort;
 
@@ -118,18 +118,6 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
         Log($"Error recovering state: {ex.Message}");
       }
     }
-  }
-
-  public Task StartAsync(CancellationToken cancellationToken)
-  {
-    return Task.CompletedTask;
-  }
-
-  public Task StopAsync(CancellationToken cancellationToken)
-  {
-    // Do NOT kill process on app stop, to allow it to survive restarts
-    _logWatcherCts?.Cancel();
-    return Task.CompletedTask;
   }
 
   public void StartProcess()
@@ -336,6 +324,12 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
     }
 
     HandleProcessExit();
+
+    lock (_logBuffer)
+    {
+      _logBuffer.Clear();
+    }
+    OnStateChanged?.Invoke();
   }
 
   public void RestartProcess()
@@ -370,6 +364,26 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
   {
     _logWatcherCts?.Cancel();
     // Do NOT kill process on dispose
+  }
+
+  private string FindLibEGL()
+  {
+    var psi = new ProcessStartInfo
+    {
+      FileName = "/bin/bash",
+      RedirectStandardOutput = true,
+      UseShellExecute = false,
+      CreateNoWindow = true,
+    };
+    psi.ArgumentList.Add("-c");
+    psi.ArgumentList.Add(
+      "if [ ! -z \"$LD_LIBRARY_PATH\" ]; then for p in ${LD_LIBRARY_PATH//:/ }; do f=\"$p/libEGL.so\"; [[ -e \"$f\" ]] && echo \"$f\" && break; done; fi"
+    );
+
+    using var p = Process.Start(psi);
+    string output = p.StandardOutput.ReadToEnd().Trim();
+    p.WaitForExit();
+    return output;
   }
 }
 

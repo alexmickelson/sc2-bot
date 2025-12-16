@@ -34,6 +34,7 @@
   {
     var group = clientManager.GetOrCreateGroup(Key);
     sc2Client = group.SC2Client;
+    sc2Client.OnConnectionStateChanged += Refresh;
 
     if (sc2Client.ConnectionState != WebSocketState.Open)
     {
@@ -43,6 +44,7 @@
 
   public void Dispose()
   {
+    sc2Client.OnConnectionStateChanged -= Refresh;
   }
 
   private void Refresh() => InvokeAsync(StateHasChanged);

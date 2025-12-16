@@ -8,26 +8,26 @@
 
 <PageTitle>Play Solo</PageTitle>
 
-<div class="flex">
-  <div>
-    <ConnectionManager Key=@Key />
-  </div>
-  <div>
-    <HeadlessClientManager Key=@Key />
-  </div>
-</div>
-
+<CustomErrorBoundary>
+  <ClientAndConnection Key=@Key />
+</CustomErrorBoundary>
 
 <div class="container mx-auto p-4">
   <div class="flex items-center mb-4">
     <h1 class="text-2xl font-bold text-white">Play Solo vs Bot</h1>
   </div>
 
-  <CreateOrLeaveGame Key=@Key />
+  <CustomErrorBoundary>
+    <CreateOrLeaveGame Key=@Key />
+  </CustomErrorBoundary>
 
-  <GameState Key=@Key />
+  <CustomErrorBoundary>
+    <GameState Key=@Key />
+  </CustomErrorBoundary>
 
-  <RequestHistory Key=@Key />
+  <CustomErrorBoundary>
+    <RequestHistory Key=@Key />
+  </CustomErrorBoundary>
 
 </div>
 

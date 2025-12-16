@@ -4,8 +4,8 @@
 @using Web.Components.InGame.Map
 @using Web.Components.InGame.Observation
 @using Web.Components.InGame
+@inherits ReliableIDisposable
 @inject ClientManager clientManager
-@implements IDisposable
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mt-3">
     <div class="p-4">
@@ -62,15 +62,27 @@
 
     private async Task GetObservation()
     {
+        await GetObservation(CancellationToken.None);
+    }
+
+    private async Task GetObservation(CancellationToken token)
+    {
         try
         {
+            if (token.IsCancellationRequested) return;
             observation = await sc2Client.GetObservationAsync();
+
+            if (token.IsCancellationRequested) return;
             mostRecentObservation = observation?.Observation ?? mostRecentObservation;
+
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error getting observation: {ex.Message}");
+            if (!token.IsCancellationRequested)
+            {
+                Console.WriteLine($"Error getting observation: {ex.Message}");
+            }
         }
     }
 
@@ -92,12 +104,15 @@
 
     private async Task AutoRefreshLoop(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, ComponentToken);
+        var linkedToken = linkedCts.Token;
+
+        while (!linkedToken.IsCancellationRequested)
         {
-            await GetObservation();
+            await GetObservation(linkedToken);
             try
             {
-                await Task.Delay(100, token);
+                await Task.Delay(100, linkedToken);
             }
             catch (TaskCanceledException)
             {
@@ -106,9 +121,11 @@
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
+        isAutoRefreshing = false;
         cts?.Cancel();
         cts?.Dispose();
+        base.Dispose();
     }
 }
