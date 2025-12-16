@@ -4,74 +4,88 @@ namespace Web.Services;
 
 public class WebSocketService : IDisposable
 {
-    private ClientWebSocket? _webSocket;
-    private CancellationTokenSource? _cts;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+  private ClientWebSocket? _webSocket;
+  private CancellationTokenSource? _cts;
+  private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public WebSocketState WebSocketState => _webSocket?.State ?? WebSocketState.None;
+  public WebSocketState WebSocketState => _webSocket?.State ?? WebSocketState.None;
 
-    public async Task ConnectAsync(string url)
+  public async Task ConnectAsync(string url)
+  {
+    if (_webSocket != null && _webSocket.State == WebSocketState.Open)
+      return;
+
+    _webSocket = new ClientWebSocket();
+    _cts = new CancellationTokenSource();
+    await _webSocket.ConnectAsync(new Uri(url), _cts.Token);
+  }
+
+  public async Task<byte[]> SendReceiveAsync(byte[] requestBytes)
+  {
+    await _lock.WaitAsync();
+    try
     {
-        if (_webSocket != null && _webSocket.State == WebSocketState.Open) return;
+      if (_webSocket == null || _webSocket.State != WebSocketState.Open)
+      {
+        throw new InvalidOperationException("Not connected to WebSocket.");
+      }
 
-        _webSocket = new ClientWebSocket();
-        _cts = new CancellationTokenSource();
-        await _webSocket.ConnectAsync(new Uri(url), _cts.Token);
-    }
+      await _webSocket.SendAsync(
+        new ArraySegment<byte>(requestBytes),
+        WebSocketMessageType.Binary,
+        true,
+        _cts!.Token
+      );
 
-    public async Task<byte[]> SendReceiveAsync(byte[] requestBytes)
-    {
-        await _lock.WaitAsync();
-        try
+      using var ms = new MemoryStream();
+      var buffer = new byte[1024 * 32];
+      WebSocketReceiveResult result;
+      do
+      {
+        result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
+        if (result.MessageType == WebSocketMessageType.Close)
         {
-            if (_webSocket == null || _webSocket.State != WebSocketState.Open)
-            {
-                throw new InvalidOperationException("Not connected to WebSocket.");
-            }
-
-            await _webSocket.SendAsync(new ArraySegment<byte>(requestBytes), WebSocketMessageType.Binary, true, _cts!.Token);
-
-            using var ms = new MemoryStream();
-            var buffer = new byte[1024 * 32];
-            WebSocketReceiveResult result;
-            do
-            {
-                result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                    throw new WebSocketException("WebSocket closed by server.");
-                }
-                ms.Write(buffer, 0, result.Count);
-            } while (!result.EndOfMessage);
-
-            return ms.ToArray();
+          await _webSocket.CloseAsync(
+            WebSocketCloseStatus.NormalClosure,
+            string.Empty,
+            CancellationToken.None
+          );
+          throw new WebSocketException("WebSocket closed by server.");
         }
-        finally
-        {
-            _lock.Release();
-        }
+        ms.Write(buffer, 0, result.Count);
+      } while (!result.EndOfMessage);
+
+      return ms.ToArray();
     }
-
-    public async Task DisconnectAsync()
+    finally
     {
-        if (_webSocket != null && _webSocket.State == WebSocketState.Open)
-        {
-            try 
-            {
-                await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnecting", CancellationToken.None);
-            }
-            catch (Exception)
-            {
-                // Ignore errors during close
-            }
-        }
+      _lock.Release();
     }
+  }
 
-    public void Dispose()
+  public async Task DisconnectAsync()
+  {
+    if (_webSocket != null && _webSocket.State == WebSocketState.Open)
     {
-        _cts?.Cancel();
-        _webSocket?.Dispose();
-        _lock.Dispose();
+      try
+      {
+        await _webSocket.CloseAsync(
+          WebSocketCloseStatus.NormalClosure,
+          "Client disconnecting",
+          CancellationToken.None
+        );
+      }
+      catch (Exception)
+      {
+        // Ignore errors during close
+      }
     }
+  }
+
+  public void Dispose()
+  {
+    _cts?.Cancel();
+    _webSocket?.Dispose();
+    _lock.Dispose();
+  }
 }

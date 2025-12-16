@@ -22,7 +22,8 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
   {
     get
     {
-      if (_process == null) return false;
+      if (_process == null)
+        return false;
       try
       {
         return !_process.HasExited;
@@ -58,16 +59,16 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
 
     if (playerInfo.PlayerNumber == 2)
     {
-        StateFileName = "headlessclient_p2.json";
-        LogFileName = "sc2_headless_p2.log";
-        PidFileName = "sc2_client_p2.pid";
-        TempDir = "/tmp/sc2_temp_p2";
+      StateFileName = "headlessclient_p2.json";
+      LogFileName = "sc2_headless_p2.log";
+      PidFileName = "sc2_client_p2.pid";
+      TempDir = "/tmp/sc2_temp_p2";
     }
     else
     {
-        StateFileName = "headlessclient.json";
-        LogFileName = "sc2_headless.log";
-        PidFileName = "sc2_client.pid";
+      StateFileName = "headlessclient.json";
+      LogFileName = "sc2_headless.log";
+      PidFileName = "sc2_client.pid";
     }
 
     RecoverState();
@@ -133,7 +134,8 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
 
   public void StartProcess()
   {
-    if (IsRunning) return;
+    if (IsRunning)
+      return;
 
     try
     {
@@ -147,12 +149,16 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
       }
       OnStateChanged?.Invoke();
 
-      if (File.Exists(pidFile)) File.Delete(pidFile);
-      if (File.Exists(logPath)) File.Delete(logPath);
+      if (File.Exists(pidFile))
+        File.Delete(pidFile);
+      if (File.Exists(logPath))
+        File.Delete(logPath);
 
-      var arguments = $"-listen {Host} -port {Port} -eglpath {EglPath} -dataDir {DataDir} -tempDir {TempDir} -displayMode 0 -windowwidth 1024 -windowheight 768 -windowx 0 -windowy 0";      // Use nohup and backgrounding to detach completely
+      var arguments =
+        $"-listen {Host} -port {Port} -eglpath {EglPath} -dataDir {DataDir} -tempDir {TempDir} -displayMode 0 -windowwidth 1024 -windowheight 768 -windowx 0 -windowy 0"; // Use nohup and backgrounding to detach completely
       // echo $! > pidFile writes the PID to a file
-      var shellArgs = $"-c \"nohup '{ExecutablePath}' {arguments} > '{logPath}' 2>&1 & echo $! > '{pidFile}'\"";
+      var shellArgs =
+        $"-c \"nohup '{ExecutablePath}' {arguments} > '{logPath}' 2>&1 & echo $! > '{pidFile}'\"";
 
       var startInfo = new ProcessStartInfo
       {
@@ -162,7 +168,7 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
         RedirectStandardOutput = false,
         RedirectStandardError = false,
         UseShellExecute = false,
-        CreateNoWindow = true
+        CreateNoWindow = true,
       };
 
       Log($"Starting process: {ExecutablePath} {arguments}");
@@ -191,7 +197,12 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
               _process.Exited += (s, e) => HandleProcessExit();
 
               // Save state
-              var state = new HeadlessClientState { Pid = pid, LogPath = logPath, StartTime = DateTime.Now };
+              var state = new HeadlessClientState
+              {
+                Pid = pid,
+                LogPath = logPath,
+                StartTime = DateTime.Now,
+              };
               var json = JsonSerializer.Serialize(state);
               File.WriteAllText(Path.Combine(_workingDirectory, StateFileName), json);
 
@@ -223,11 +234,13 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
       Log($"Error starting process: {ex.Message}");
     }
   }
+
   private void HandleProcessExit()
   {
     Log("Process exited.");
     var statePath = Path.Combine(_workingDirectory, StateFileName);
-    if (File.Exists(statePath)) File.Delete(statePath);
+    if (File.Exists(statePath))
+      File.Delete(statePath);
 
     _logWatcherCts?.Cancel();
     OnStateChanged?.Invoke();
@@ -239,51 +252,59 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
     _logWatcherCts = new CancellationTokenSource();
     var token = _logWatcherCts.Token;
 
-    Task.Run(async () =>
-    {
-      try
+    Task.Run(
+      async () =>
       {
-        // Wait for file to exist
-        while (!File.Exists(logPath) && !token.IsCancellationRequested)
+        try
         {
-          await Task.Delay(100, token);
-        }
-
-        // Open with FileShare.ReadWrite to allow writing while reading
-        using var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
-
-        // Read existing content
-        string? line;
-        while ((line = await reader.ReadLineAsync()) != null)
-        {
-          Log(line, false);
-        }
-        OnLogReceived?.Invoke(Logs); // Trigger update for bulk load
-
-        // Tail the file
-        while (!token.IsCancellationRequested)
-        {
-          line = await reader.ReadLineAsync();
-          if (line != null)
+          // Wait for file to exist
+          while (!File.Exists(logPath) && !token.IsCancellationRequested)
           {
-            Log(line);
+            await Task.Delay(100, token);
           }
-          else
-          {
-            // Wait for more data
-            await Task.Delay(500, token);
 
-            // If the file was deleted/recreated, we might need to handle that?
-            // For now assume log file is stable for the process lifetime.
+          // Open with FileShare.ReadWrite to allow writing while reading
+          using var stream = new FileStream(
+            logPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite
+          );
+          using var reader = new StreamReader(stream);
+
+          // Read existing content
+          string? line;
+          while ((line = await reader.ReadLineAsync()) != null)
+          {
+            Log(line, false);
+          }
+          OnLogReceived?.Invoke(Logs); // Trigger update for bulk load
+
+          // Tail the file
+          while (!token.IsCancellationRequested)
+          {
+            line = await reader.ReadLineAsync();
+            if (line != null)
+            {
+              Log(line);
+            }
+            else
+            {
+              // Wait for more data
+              await Task.Delay(500, token);
+
+              // If the file was deleted/recreated, we might need to handle that?
+              // For now assume log file is stable for the process lifetime.
+            }
           }
         }
-      }
-      catch (Exception ex) when (ex is not OperationCanceledException)
-      {
-        Log($"Error watching logs: {ex.Message}");
-      }
-    }, token);
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+          Log($"Error watching logs: {ex.Message}");
+        }
+      },
+      token
+    );
   }
 
   public void KillProcess()
@@ -295,18 +316,22 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
       {
         // Try graceful shutdown first (SIGTERM)
         Process.Start("kill", _process.Id.ToString())?.WaitForExit();
-        
+
         if (!_process.WaitForExit(5000)) // Wait 5 seconds for cleanup
         {
-             Log("Process did not exit gracefully, forcing kill...");
-             _process.Kill(true); // Kill entire process tree
-             _process.WaitForExit(2000);
+          Log("Process did not exit gracefully, forcing kill...");
+          _process.Kill(true); // Kill entire process tree
+          _process.WaitForExit(2000);
         }
       }
       catch (Exception ex)
       {
         Log($"Error killing process: {ex.Message}");
-        try { _process.Kill(true); } catch { }
+        try
+        {
+          _process.Kill(true);
+        }
+        catch { }
       }
     }
 
@@ -321,7 +346,8 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
 
   private void Log(string? message, bool notify = true)
   {
-    if (string.IsNullOrEmpty(message)) return;
+    if (string.IsNullOrEmpty(message))
+      return;
 
     // If message already has timestamp (from file), maybe don't add another?
     // But our file is raw output, so we should add timestamp.
@@ -336,7 +362,8 @@ public class LinuxHeadlessClientService : IHostedService, IDisposable
       _logBuffer.AppendLine(timestampedMessage);
     }
 
-    if (notify) OnLogReceived?.Invoke(timestampedMessage);
+    if (notify)
+      OnLogReceived?.Invoke(timestampedMessage);
   }
 
   public void Dispose()

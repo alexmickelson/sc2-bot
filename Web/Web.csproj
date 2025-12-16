@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <ItemGroup>
     <ProjectReference Include="..\SC2Protocol\SC2Protocol.csproj" />
     <!-- <Watch Include="Styles\**\*.css" /> -->
@@ -15,7 +14,4 @@
   <!-- <Target Name="Tailwind" BeforeTargets="Build;ResolveStaticWebAssets">
     <Exec Command="pnpm run build:css" />
   </Target> -->
-
 </Project>
-
-

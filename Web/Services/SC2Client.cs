@@ -8,7 +8,7 @@ namespace Web.Services;
 
 public class SC2Client : IDisposable
 {
-  private readonly WebSocketService _webSocketService = new();
+  private readonly WebSocketService _webSocketService;
   private readonly string _url;
 
   // Store request/response pairs
@@ -20,8 +20,9 @@ public class SC2Client : IDisposable
   public WebSocketState ConnectionState => _webSocketService.WebSocketState;
   public Status CurrentStatus { get; private set; } = Status.Unknown;
 
-  public SC2Client(Web.Models.PlayerInfo playerInfo)
+  public SC2Client(WebSocketService webSocketService, Web.Models.PlayerInfo playerInfo)
   {
+    _webSocketService = webSocketService;
     _url = $"ws://127.0.0.1:{playerInfo.ClientPort}/sc2api";
   }
 
@@ -33,27 +34,27 @@ public class SC2Client : IDisposable
 
   public async Task<Response> SendRequestAsync(Request request)
   {
-      var bytes = request.ToByteArray();
-      var responseBytes = await _webSocketService.SendReceiveAsync(bytes);
-      var response = Response.Parser.ParseFrom(responseBytes);
+    var bytes = request.ToByteArray();
+    var responseBytes = await _webSocketService.SendReceiveAsync(bytes);
+    var response = Response.Parser.ParseFrom(responseBytes);
 
-      if (response.Status != CurrentStatus)
-      {
-          CurrentStatus = response.Status;
-          OnGameStateChanged?.Invoke();
-      }
+    if (response.Status != CurrentStatus)
+    {
+      CurrentStatus = response.Status;
+      OnGameStateChanged?.Invoke();
+    }
 
-      // Log to history
-      History.Add(new RequestResponsePair(request, response, DateTime.Now));
+    // Log to history
+    History.Add(new RequestResponsePair(request, response, DateTime.Now));
 
-      if (History.Count > 130)
-      {
-          History.RemoveRange(0, History.Count - 100);
-      }
+    if (History.Count > 130)
+    {
+      History.RemoveRange(0, History.Count - 100);
+    }
 
-      OnHistoryUpdated?.Invoke();
+    OnHistoryUpdated?.Invoke();
 
-      return response;
+    return response;
   }
 
   public async Task MoveCameraAsync(int x, int y)
@@ -70,12 +71,12 @@ public class SC2Client : IDisposable
             {
               CameraMove = new ActionSpatialCameraMove
               {
-                CenterMinimap = new PointI { X = x, Y = y }
-              }
-            }
-          }
-        }
-      }
+                CenterMinimap = new PointI { X = x, Y = y },
+              },
+            },
+          },
+        },
+      },
     };
     await SendRequestAsync(request);
   }
