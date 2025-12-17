@@ -102,7 +102,10 @@
         Race = myRace,
         Options = InterfaceOptions,
         ServerPorts = new PortSet { GamePort = gamePort, BasePort = gamePort + 1 },
-        SharedPort = gamePort + 2, // Just a guess, usually shared port is needed for multiplayer
+        ClientPorts = {
+new PortSet { GamePort = gamePort + 2, BasePort = gamePort + 3 },
+new PortSet { GamePort = gamePort + 4, BasePort = gamePort + 5 }
+},
         HostIp = hostIp
       };
 

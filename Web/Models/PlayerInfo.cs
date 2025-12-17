@@ -1,3 +1,3 @@
 namespace Web.Models;
 
-public record PlayerInfo(int PlayerNumber, int ClientPort, int WebsitePort);
+public record WebPlayerInfo(int PlayerNumber, int ClientPort);

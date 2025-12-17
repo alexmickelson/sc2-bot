@@ -1,7 +1,8 @@
 @using SC2APIProtocol
 @using Web.Services
 @using Web.Components.Shared
-@inject SC2Client sc2Client
+@using Web.Models
+@inject ClientManager clientManager
 
 <div class="bg-gray-800/50 text-gray-50 shadow rounded-lg mb-3">
   <div class="p-4">
@@ -78,6 +79,11 @@
       </button>
     }
 
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+      <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mt-2">@statusMessage</div>
+    }
+
     @if (!string.IsNullOrEmpty(errorMessage))
     {
       <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
@@ -87,12 +93,17 @@
 
 @code {
 
+  [Parameter]
+  public string Key { get; set; } = "";
+  private SC2Client sc2Client = default!;
+  private WebPlayerInfo playerInfo = default!;
   private List<string> localMaps = new();
   private List<string> battleNetMaps = new();
   private string selectedMap = "";
   private bool isLoadingMaps = false;
   private bool isLoading = false;
   private string errorMessage = "";
+  private string statusMessage = "";
 
   // Game Settings
   private Race myRace = Race.Terran;
@@ -110,6 +121,10 @@
 
   protected override async Task OnInitializedAsync()
   {
+    var group = clientManager.GetOrCreateGroup(Key);
+    sc2Client = group.SC2Client;
+    playerInfo = group.PlayerInfo;
+
     // Initialize default options
     InterfaceOptions = new InterfaceOptions
     {
@@ -191,60 +206,60 @@
   {
     isLoading = true;
     errorMessage = "";
-    try
+    statusMessage = "Creating game...";
+    var createGameRequest = new RequestCreateGame();
+
+    if (selectedMap.EndsWith(".SC2Map"))
     {
-      var request = new Request();
-      request.CreateGame = new RequestCreateGame();
-
-      if (selectedMap.EndsWith(".SC2Map"))
-      {
-        request.CreateGame.LocalMap = new LocalMap { MapPath = selectedMap };
-      }
-      else
-      {
-        request.CreateGame.BattlenetMapName = selectedMap;
-      }
-
-      // Add players
-      // Player 1 (Us - Host)
-      request.CreateGame.PlayerSetup.Add(new PlayerSetup
-      {
-        Type = PlayerType.Participant,
-        Race = myRace
-      });
-
-      // Player 2 (Opponent - Joining Player)
-      request.CreateGame.PlayerSetup.Add(new PlayerSetup
-      {
-        Type = PlayerType.Participant,
-        Race = Race.Random // Or let them choose? Usually host defines slots.
-      });
-
-      request.CreateGame.Realtime = realtime;
-
-      var response = await sc2Client.SendRequestAsync(request);
-
-      if (response.Status == Status.InitGame)
-      {
-        await JoinGame();
-      }
-      else
-      {
-        errorMessage = $"Game creation failed. Status: {response.Status}";
-        if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
-        if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
-        if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
-      }
+      createGameRequest.LocalMap = new LocalMap { MapPath = selectedMap };
     }
-    catch (Exception ex)
+    else
     {
-      errorMessage = $"An error occurred: {ex.Message}";
+      createGameRequest.BattlenetMapName = selectedMap;
     }
-    finally
+
+    createGameRequest.PlayerSetup.Add(new PlayerSetup
     {
-      isLoading = false;
+      Type = PlayerType.Participant,
+      Race = myRace
+    });
+
+    createGameRequest.PlayerSetup.Add(new PlayerSetup
+    {
+      Type = PlayerType.Participant,
+      Race = Race.Random
+    });
+
+    createGameRequest.Realtime = realtime;
+
+    var request = new Request
+    {
+      CreateGame = createGameRequest
+    };
+
+    Console.WriteLine($"Sending CreateGame Request: {request}");
+
+    var response = await sc2Client.SendRequestAsync(request);
+    Console.WriteLine($"got create game response: {response}");
+
+
+    if (response.Status == Status.InitGame)
+    {
+      statusMessage = "Game created. Joining as Host...";
+      StateHasChanged();
+      await JoinGame();
     }
+    else
+    {
+      statusMessage = "";
+      errorMessage = $"Game creation failed. Status: {response.Status}";
+      if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
+      if (response.CreateGame?.HasError == true) errorMessage += $" CreateGame Error: {response.CreateGame.Error}";
+      if (response.CreateGame?.HasErrorDetails == true) errorMessage += $" Details: {response.CreateGame.ErrorDetails}";
+    }
+    isLoading = false;
   }
+
 
   private async Task JoinGame()
   {
@@ -262,34 +277,54 @@
       InterfaceOptions.FeatureLayer.MinimapResolution ??= new Size2DI { X = 64, Y = 64 };
     }
 
+    var basePort = playerInfo.ClientPort;
+    var serverGamePort = basePort + 1;
+    var serverBasePort = basePort + 2;
+    var client1GamePort = basePort + 3;
+    var client1BasePort = basePort + 4;
+    var client2GamePort = basePort + 5;
+    var client2BasePort = basePort + 6;
+
+    statusMessage = $"Joining game... Server Ports: {serverGamePort}/{serverBasePort}. Client Ports: {client1GamePort}/{client1BasePort}, {client2GamePort}/{client2BasePort}. Waiting for other players...";
+    StateHasChanged();
+
     var request = new RequestJoinGame
     {
       Race = myRace,
       Options = InterfaceOptions,
       ServerPorts = new PortSet
       {
-        GamePort = 5000,
-        BasePort = 5001
+        GamePort = serverGamePort,
+        BasePort = serverBasePort
       },
       ClientPorts = {
 new PortSet {
-GamePort = 5002,
-BasePort = 5003
+GamePort = client1GamePort,
+BasePort = client1BasePort
+},
+new PortSet {
+GamePort = client2GamePort,
+BasePort = client2BasePort
 }
 }
     };
-    // Note: For hosting multiplayer, we might need to specify ports.
-    // The host usually needs to specify ServerPorts and ClientPorts for all players if playing on local network/direct
-    @* connect. *@
-    // I'll add some default ports for now, as that's often required for multiplayer.
-
-    // Actually, let's check if I need to add ports to the UI.
-    // For now I will hardcode them or leave them as default if the API handles it.
-    // But typically for CreateGame with Participants, JoinGame needs ports.
-
-    // Let's add ports to the JoinGame request.
 
     var response = await sc2Client.SendRequestAsync(new Request { JoinGame = request });
+    Console.WriteLine($"join game response: {response}");
+
+    if (response.Status == Status.InGame)
+    {
+      statusMessage = "Game Started!";
+    }
+    else
+    {
+      statusMessage = "";
+      errorMessage = $"Join Game failed: {response.Status}";
+      if (response.Error.Count > 0) errorMessage += $" Errors: {string.Join(", ", response.Error)}";
+      if (response.JoinGame?.HasError == true) errorMessage += $" JoinGame Error: {response.JoinGame.Error}";
+      if (response.JoinGame?.HasErrorDetails == true) errorMessage += $" Details: {response.JoinGame.ErrorDetails}";
+    }
+
   }
 
 }

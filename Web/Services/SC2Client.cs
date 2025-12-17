@@ -20,7 +20,7 @@ public class SC2Client : IDisposable
   public WebSocketState ConnectionState => _webSocketService.WebSocketState;
   public Status CurrentStatus { get; private set; } = Status.Unknown;
 
-  public SC2Client(WebSocketService webSocketService, Web.Models.PlayerInfo playerInfo)
+  public SC2Client(WebSocketService webSocketService, WebPlayerInfo playerInfo)
   {
     _webSocketService = webSocketService;
     _url = $"ws://127.0.0.1:{playerInfo.ClientPort}/sc2api";
@@ -35,6 +35,7 @@ public class SC2Client : IDisposable
   public async Task<Response> SendRequestAsync(Request request)
   {
     var bytes = request.ToByteArray();
+    Console.WriteLine($"Sending Request: {request}");
     var responseBytes = await _webSocketService.SendReceiveAsync(bytes);
     var response = Response.Parser.ParseFrom(responseBytes);
 

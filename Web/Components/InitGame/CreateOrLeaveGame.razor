@@ -1,7 +1,3 @@
-@using SC2APIProtocol
-@using Web.Services
-@using Web.Components.InitGame
-@using Web.Components.InGame
 @inject ClientManager clientManager
 @implements IDisposable
 
@@ -9,7 +5,14 @@
 || sc2Client.CurrentStatus == Status.Ended
 || sc2Client.CurrentStatus == Status.InitGame)
 {
-  <CreateGame Key=@Key />
+  if(Type == "solo")
+  {
+    <CreateSoloGame Key=@Key />
+  }
+  else if(Type == "multiplayer")
+  {
+    <CreateHostMultiplayerGame Key=@Key />
+  }
 }
 else if (sc2Client.CurrentStatus == Status.InGame)
 {
@@ -19,6 +22,8 @@ else if (sc2Client.CurrentStatus == Status.InGame)
 @code {
   [Parameter]
   public string Key { get; set; } = "";
+  [Parameter]
+  public string Type { get; set; } = "";
 
   private SC2Client sc2Client = default!;
 

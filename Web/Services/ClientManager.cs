@@ -5,7 +5,7 @@ namespace Web.Services;
 public class ClientGroup : IDisposable
 {
   public required string Key { get; init; }
-  public required PlayerInfo PlayerInfo { get; init; }
+  public required WebPlayerInfo PlayerInfo { get; init; }
   public required WebSocketService WebSocketService { get; init; }
   public required SC2Client SC2Client { get; init; }
   public required LinuxHeadlessClientService LinuxHeadlessClientService { get; init; }
@@ -44,7 +44,8 @@ public class ClientManager : IDisposable
       return group;
     }
 
-    var player1Info = new PlayerInfo(1, 5000, 5100);
+    var port = GetNextAvailablePort();
+    var player1Info = new WebPlayerInfo(1, port);
     var ws1 = new WebSocketService();
     _groups[key] = new ClientGroup
     {
@@ -55,6 +56,16 @@ public class ClientManager : IDisposable
       LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
     };
     return _groups[key];
+  }
+
+  private int GetNextAvailablePort()
+  {
+    var port = 5010;
+    while (_groups.Values.Any(g => g.PlayerInfo.ClientPort == port))
+    {
+      port += 10;
+    }
+    return port;
   }
 
   public void Dispose()

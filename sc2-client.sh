@@ -75,12 +75,12 @@ launch_sc2() {
     # $(find /nix/store -name libEGL.so | head -n 1)
 
     # "$SC_BINARY" -listen 127.0.0.1 -port 5000 -dataDir "$(pwd)/StarCraftII" -tempDir "/tmp/sc2_temp"
-    "$SC2_BINARY" \
-        -listen 127.0.0.1 \
-        -port "$port" \
-        -eglpath "/nix/store/z88avybj8n2svi9wv1hl937k2k3mbc2d-libglvnd-1.7.0/lib/libEGL.so" \
-        -dataDir "$(pwd)/StarCraftII" \
-        -tempDir "/tmp/sc2_temp"
+    
+    full_command="\"$SC2_BINARY\" -listen 127.0.0.1 -port \"$port\" -eglpath \"/nix/store/z88avybj8n2svi9wv1hl937k2k3mbc2d-libglvnd-1.7.0/lib/libEGL.so\" -dataDir \"$(pwd)/StarCraftII\" -tempDir \"/tmp/sc2_temp\""
+    
+    echo "Executing: $full_command"
+    
+    eval "$full_command"
 }
 
 main() {

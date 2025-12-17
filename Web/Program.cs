@@ -12,7 +12,7 @@ builder.Services.AddSingleton<ClientManager>();
 builder.Services.AddScoped<TrackingCircuitHandler>(); //properly dispose on page refresh
 builder.Services.AddScoped<CircuitHandler>(sp => sp.GetRequiredService<TrackingCircuitHandler>());
 
-builder.WebHost.UseUrls($"http://0.0.0.0:5100");
+builder.WebHost.UseUrls($"http://0.0.0.0:5000");
 
 var app = builder.Build();
 

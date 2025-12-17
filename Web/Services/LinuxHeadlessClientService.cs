@@ -46,7 +46,7 @@ public class LinuxHeadlessClientService : IDisposable
   public int Port { get; set; } = 5000;
   public string Host { get; set; } = "127.0.0.1";
 
-  public LinuxHeadlessClientService(PlayerInfo playerInfo)
+  public LinuxHeadlessClientService(WebPlayerInfo playerInfo)
   {
     var rootDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), ".."));
     _workingDirectory = rootDir;
