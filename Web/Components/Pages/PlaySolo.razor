@@ -1,10 +1,9 @@
 @page "/play-solo"
 @using SC2APIProtocol
-@using Web.Components.InitConnection
-@using Web.Components.InitGame
-@using Web.Services
+@using System.Net.WebSockets
 @rendermode InteractiveServer
 @inject ClientManager clientManager
+@implements IDisposable
 
 <PageTitle>Play Solo</PageTitle>
 
@@ -17,18 +16,20 @@
     <h1 class="text-2xl font-bold text-white">Play Solo vs Bot</h1>
   </div>
 
-  <CustomErrorBoundary>
-    <CreateOrLeaveGame Key=@Key Type="solo" />
-  </CustomErrorBoundary>
+  @if (IsConnectedToClient)
+  {
+    <CustomErrorBoundary>
+      <CreateOrLeaveGame Key=@Key Type="solo" />
+    </CustomErrorBoundary>
 
-  <CustomErrorBoundary>
-    <GameState Key=@Key />
-  </CustomErrorBoundary>
+    <CustomErrorBoundary>
+      <GameState Key=@Key />
+    </CustomErrorBoundary>
 
-  <CustomErrorBoundary>
-    <RequestHistory Key=@Key />
-  </CustomErrorBoundary>
-
+    <CustomErrorBoundary>
+      <RequestHistory Key=@Key />
+    </CustomErrorBoundary>
+  }
 </div>
 
 @code {
@@ -39,6 +40,21 @@
   {
     var group = clientManager.GetOrCreateGroup(Key);
     sc2Client = group.SC2Client;
+    sc2Client.OnConnectionStateChanged += Refresh;
   }
+
+  private void Refresh() => InvokeAsync(StateHasChanged);
+
+
+  public void Dispose()
+  {
+    if (sc2Client is not null)
+    {
+      sc2Client.OnConnectionStateChanged -= Refresh;
+    }
+  }
+
+  private bool IsConnectedToClient => clientManager.GetOrCreateGroup(Key).SC2Client.ConnectionState ==
+  WebSocketState.Open;
 
 }

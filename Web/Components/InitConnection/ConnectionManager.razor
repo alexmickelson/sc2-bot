@@ -13,7 +13,7 @@
       </p>
       <button
         class="px-4 py-2 rounded font-semibold transition-colors duration-200 bg-blue-500 text-blue-50 hover:bg-blue-600"
-        @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:5000)</button>
+        @onclick="ConnectToSC2">Connect to SC2 (127.0.0.1:@port)</button>
       @if (!string.IsNullOrEmpty(errorMessage))
       {
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-2">@errorMessage</div>
@@ -28,12 +28,14 @@
   public string Key { get; set; } = "";
 
   private SC2Client sc2Client = default!;
+  private int port;
   private string errorMessage = "";
 
   protected override async Task OnInitializedAsync()
   {
     var group = clientManager.GetOrCreateGroup(Key);
     sc2Client = group.SC2Client;
+    port = group.PlayerInfo.ClientPort;
     sc2Client.OnConnectionStateChanged += Refresh;
 
     if (sc2Client.ConnectionState != WebSocketState.Open)

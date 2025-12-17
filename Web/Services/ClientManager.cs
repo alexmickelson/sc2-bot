@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Web.Models;
 
 namespace Web.Services;
@@ -8,21 +9,34 @@ public class ClientGroup : IDisposable
   public required WebPlayerInfo PlayerInfo { get; init; }
   public required WebSocketService WebSocketService { get; init; }
   public required SC2Client SC2Client { get; init; }
-  public required LinuxHeadlessClientService LinuxHeadlessClientService { get; init; }
+  public required IHeadlessClientService HeadlessClientService { get; init; }
 
   public void Dispose()
   {
     SC2Client.Dispose();
     WebSocketService.Dispose();
-    LinuxHeadlessClientService.Dispose();
+    HeadlessClientService.Dispose();
   }
 }
 
 public class ClientManager : IDisposable
 {
   private readonly Dictionary<string, ClientGroup> _groups = new();
+  private readonly string _keysFilePath;
 
-  public ClientManager() { }
+  public ClientManager()
+  {
+    var rootDir = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), ".."));
+    var stateDir = Path.Combine(rootDir, "clientStateData");
+    if (!Directory.Exists(stateDir))
+    {
+      Directory.CreateDirectory(stateDir);
+    }
+    _keysFilePath = Path.Combine(stateDir, "clientKeys.json");
+    LoadKeys();
+  }
+
+  public event Action? OnGroupChanged;
 
   public ClientGroup GetOrCreateGroup(string key)
   {
@@ -34,15 +48,19 @@ public class ClientManager : IDisposable
     var port = GetNextAvailablePort();
     var player1Info = new WebPlayerInfo(key, port);
     var ws1 = new WebSocketService();
-    _groups[key] = new ClientGroup
+    var newGroup = new ClientGroup
     {
       Key = key,
       PlayerInfo = player1Info,
       WebSocketService = ws1,
       SC2Client = new SC2Client(ws1, player1Info),
-      LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
+      HeadlessClientService = new LinuxHeadlessClientService(player1Info),
     };
-    return _groups[key];
+    _groups[key] = newGroup;
+    SaveKeys();
+    OnGroupChanged?.Invoke();
+
+    return newGroup;
   }
 
   private int GetNextAvailablePort()
@@ -53,6 +71,60 @@ public class ClientManager : IDisposable
       port += 10;
     }
     return port;
+  }
+
+  public IEnumerable<ClientGroup> GetAllGroups()
+  {
+    return _groups.Values;
+  }
+
+  public void RemoveGroup(string key)
+  {
+    if (_groups.TryGetValue(key, out var group))
+    {
+      group.Dispose();
+      group.HeadlessClientService.KillProcess();
+      _groups.Remove(key);
+      SaveKeys();
+      OnGroupChanged?.Invoke();
+    }
+  }
+
+  private void SaveKeys()
+  {
+    try
+    {
+      var keys = _groups.Keys.ToList();
+      var json = JsonSerializer.Serialize(keys);
+      File.WriteAllText(_keysFilePath, json);
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error saving client keys: {ex.Message}");
+    }
+  }
+
+  private void LoadKeys()
+  {
+    if (!File.Exists(_keysFilePath))
+      return;
+
+    try
+    {
+      var json = File.ReadAllText(_keysFilePath);
+      var keys = JsonSerializer.Deserialize<List<string>>(json);
+      if (keys != null)
+      {
+        foreach (var key in keys)
+        {
+          GetOrCreateGroup(key);
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error loading client keys: {ex.Message}");
+    }
   }
 
   public void Dispose()

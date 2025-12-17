@@ -1,8 +1,9 @@
 @page "/host-game"
 @using Microsoft.AspNetCore.DataProtection.KeyManagement
-@using Web.Components.InitConnection
-@using Web.Components.InitGame
+@using System.Net.WebSockets
 @using Web.Services
+@inject ClientManager clientManager
+@implements IDisposable
 @rendermode InteractiveServer
 
 <PageTitle>Host Game</PageTitle>
@@ -14,22 +15,46 @@
   <ClientAndConnection Key=@Key />
 </CustomErrorBoundary>
 
-<div class="p-4">
-  <CustomErrorBoundary>
-    <CreateOrLeaveGame Type="multiplayer" Key=@Key />
-  </CustomErrorBoundary>
+@if (IsConnectedToClient)
+{
+  <div class="p-4">
+    <CustomErrorBoundary>
+      <CreateOrLeaveGame Type="multiplayer" Key=@Key />
+    </CustomErrorBoundary>
 
-  <CustomErrorBoundary>
-    <GameState Key=@Key />
-  </CustomErrorBoundary>
+    <CustomErrorBoundary>
+      <GameState Key=@Key />
+    </CustomErrorBoundary>
 
-  <CustomErrorBoundary>
-    <RequestHistory Key=@Key />
-  </CustomErrorBoundary>
-</div>
+    <CustomErrorBoundary>
+      <RequestHistory Key=@Key />
+    </CustomErrorBoundary>
+  </div>
+}
 
 
 @code {
 
   private string Key = "Player1";
+  private bool IsConnectedToClient => clientManager.GetOrCreateGroup(Key).SC2Client.ConnectionState ==
+  WebSocketState.Open;
+  private SC2Client sc2Client = default!;
+
+  protected override void OnInitialized()
+  {
+    var group = clientManager.GetOrCreateGroup(Key);
+    sc2Client = group.SC2Client;
+    sc2Client.OnConnectionStateChanged += Refresh;
+  }
+
+  private void Refresh() => InvokeAsync(StateHasChanged);
+
+  public void Dispose()
+  {
+    if (sc2Client is not null)
+    {
+      sc2Client.OnConnectionStateChanged -= Refresh;
+    }
+  }
+
 }

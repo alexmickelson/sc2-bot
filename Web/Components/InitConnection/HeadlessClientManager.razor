@@ -82,7 +82,7 @@
 
   [Parameter]
   public string Key { get; set; } = "";
-  private LinuxHeadlessClientService HeadlessService = default!;
+  private IHeadlessClientService HeadlessService = default!;
   private SC2Client sc2Client = default!;
   private ElementReference logContainer;
 
@@ -91,7 +91,7 @@
     var group = clientManager.GetOrCreateGroup(Key);
 
     sc2Client = group.SC2Client;
-    HeadlessService = group.LinuxHeadlessClientService;
+    HeadlessService = group.HeadlessClientService;
 
     HeadlessService.OnStateChanged += Refresh;
     HeadlessService.OnLogReceived += OnLog;

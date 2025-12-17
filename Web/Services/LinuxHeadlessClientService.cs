@@ -5,7 +5,7 @@ using Web.Models;
 
 namespace Web.Services;
 
-public class LinuxHeadlessClientService : IDisposable
+public class LinuxHeadlessClientService : IHeadlessClientService
 {
   private Process? _process;
   private readonly StringBuilder _logBuffer = new();
@@ -36,9 +36,7 @@ public class LinuxHeadlessClientService : IDisposable
     }
   }
   public string Logs => _logBuffer.ToString();
-
   private readonly string _workingDirectory;
-
   public string ExecutablePath { get; set; }
   public string DataDir { get; set; }
   public string EglPath { get; set; }
@@ -94,47 +92,43 @@ public class LinuxHeadlessClientService : IDisposable
 
   private void RecoverState()
   {
-    // StateFileName is now an absolute path
-    if (File.Exists(StateFileName))
+    if (!File.Exists(StateFileName))
+      return;
+
+    try
     {
+      var json = File.ReadAllText(StateFileName);
+      var state = JsonSerializer.Deserialize<HeadlessClientState>(json);
+      if (state == null)
+        return;
+
       try
       {
-        var json = File.ReadAllText(StateFileName);
-        var state = JsonSerializer.Deserialize<HeadlessClientState>(json);
-        if (state != null)
+        var proc = Process.GetProcessById(state.Pid);
+        if (!proc.HasExited)
         {
-          try
-          {
-            var proc = Process.GetProcessById(state.Pid);
-            // Verify it might be our process? Hard to be 100% sure without checking process name/path
-            // but for now assume if it exists it's ours.
-            if (!proc.HasExited)
-            {
-              _process = proc;
-              _process.EnableRaisingEvents = true;
-              _process.Exited += (s, e) => HandleProcessExit();
+          _process = proc;
+          _process.EnableRaisingEvents = true;
+          _process.Exited += (s, e) => HandleProcessExit();
 
-              Log($"Recovered process with PID {state.Pid}");
-              StartWatchingLogs(state.LogPath);
-            }
-            else
-            {
-              Log($"Process {state.Pid} has exited.");
-              File.Delete(StateFileName);
-            }
-          }
-          catch (ArgumentException)
-          {
-            // Process not found
-            Log($"Process {state.Pid} not found.");
-            File.Delete(StateFileName);
-          }
+          Log($"Recovered process with PID {state.Pid}");
+          StartWatchingLogs(state.LogPath);
+        }
+        else
+        {
+          Log($"Process {state.Pid} has exited.");
+          File.Delete(StateFileName);
         }
       }
-      catch (Exception ex)
+      catch (ArgumentException)
       {
-        Log($"Error recovering state: {ex.Message}");
+        Log($"Process {state.Pid} not found.");
+        File.Delete(StateFileName);
       }
+    }
+    catch (Exception ex)
+    {
+      Log($"Error recovering state: {ex.Message}");
     }
   }
 
@@ -145,101 +139,99 @@ public class LinuxHeadlessClientService : IDisposable
 
     try
     {
-      // LogFileName and PidFileName are now absolute paths
-      var logPath = LogFileName;
-      var pidFile = PidFileName;
-
-      // Clear previous logs
-      lock (_logBuffer)
-      {
-        _logBuffer.Clear();
-      }
-      OnStateChanged?.Invoke();
-
-      if (File.Exists(pidFile))
-        File.Delete(pidFile);
-      if (File.Exists(logPath))
-        File.Delete(logPath);
+      PrepareForStart();
 
       var arguments =
-        $"-listen {Host} -port {Port} -eglpath {EglPath} -dataDir {DataDir} -tempDir {TempDir} -displayMode 0 -windowwidth 1024 -windowheight 768 -windowx 0 -windowy 0"; // Use nohup and backgrounding to detach completely
-      // echo $! > pidFile writes the PID to a file
+        $"-listen {Host} -port {Port} -eglpath {EglPath} -dataDir {DataDir} -tempDir {TempDir} -displayMode 0 -windowwidth 1024 -windowheight 768 -windowx 0 -windowy 0";
       var shellArgs =
-        $"-c \"nohup '{ExecutablePath}' {arguments} > '{logPath}' 2>&1 & echo $! > '{pidFile}'\"";
-
-      var startInfo = new ProcessStartInfo
-      {
-        FileName = "/bin/sh",
-        Arguments = shellArgs,
-        WorkingDirectory = _workingDirectory,
-        RedirectStandardOutput = false,
-        RedirectStandardError = false,
-        UseShellExecute = false,
-        CreateNoWindow = true,
-      };
+        $"-c \"nohup '{ExecutablePath}' {arguments} > '{LogFileName}' 2>&1 & echo $! > '{PidFileName}'\"";
 
       Log($"Starting process: {ExecutablePath} {arguments}");
-      Log($"Logging to: {logPath}");
+      Log($"Logging to: {LogFileName}");
 
-      using var starter = new Process { StartInfo = startInfo };
+      using var starter = new Process
+      {
+        StartInfo = new ProcessStartInfo
+        {
+          FileName = "/bin/sh",
+          Arguments = shellArgs,
+          WorkingDirectory = _workingDirectory,
+          UseShellExecute = false,
+          CreateNoWindow = true,
+        },
+      };
       starter.Start();
       starter.WaitForExit();
 
-      if (starter.ExitCode == 0)
-      {
-        // Wait briefly for the pid file to be written
-        Thread.Sleep(100);
-
-        if (File.Exists(pidFile))
-        {
-          var pidText = File.ReadAllText(pidFile).Trim();
-          File.Delete(pidFile); // Cleanup
-
-          if (int.TryParse(pidText, out int pid))
-          {
-            try
-            {
-              _process = Process.GetProcessById(pid);
-              _process.EnableRaisingEvents = true;
-              _process.Exited += (s, e) => HandleProcessExit();
-
-              // Save state
-              var state = new HeadlessClientState
-              {
-                Pid = pid,
-                LogPath = logPath,
-                StartTime = DateTime.Now,
-              };
-              var json = JsonSerializer.Serialize(state);
-              File.WriteAllText(StateFileName, json);
-
-              StartWatchingLogs(logPath);
-              OnStateChanged?.Invoke();
-            }
-            catch (Exception ex)
-            {
-              Log($"Failed to attach to process {pid}: {ex.Message}");
-            }
-          }
-          else
-          {
-            Log($"Failed to parse PID from file: {pidText}");
-          }
-        }
-        else
-        {
-          Log("Failed to start process: PID file not created.");
-        }
-      }
-      else
+      if (starter.ExitCode != 0)
       {
         Log($"Failed to start process. Exit code: {starter.ExitCode}");
+        return;
       }
+
+      AttachToNewProcess();
     }
     catch (Exception ex)
     {
       Log($"Error starting process: {ex.Message}");
     }
+  }
+
+  private void PrepareForStart()
+  {
+    lock (_logBuffer)
+      _logBuffer.Clear();
+    OnStateChanged?.Invoke();
+
+    if (File.Exists(PidFileName))
+      File.Delete(PidFileName);
+    if (File.Exists(LogFileName))
+      File.Delete(LogFileName);
+  }
+
+  private void AttachToNewProcess()
+  {
+    Thread.Sleep(100); // Wait for PID file
+    if (!File.Exists(PidFileName))
+    {
+      Log("Failed to start process: PID file not created.");
+      return;
+    }
+
+    var pidText = File.ReadAllText(PidFileName).Trim();
+    File.Delete(PidFileName);
+
+    if (!int.TryParse(pidText, out int pid))
+    {
+      Log($"Failed to parse PID: {pidText}");
+      return;
+    }
+
+    try
+    {
+      _process = Process.GetProcessById(pid);
+      _process.EnableRaisingEvents = true;
+      _process.Exited += (s, e) => HandleProcessExit();
+
+      SaveState(pid);
+      StartWatchingLogs(LogFileName);
+      OnStateChanged?.Invoke();
+    }
+    catch (Exception ex)
+    {
+      Log($"Failed to attach to process {pid}: {ex.Message}");
+    }
+  }
+
+  private void SaveState(int pid)
+  {
+    var state = new HeadlessClientState
+    {
+      Pid = pid,
+      LogPath = LogFileName,
+      StartTime = DateTime.Now,
+    };
+    File.WriteAllText(StateFileName, JsonSerializer.Serialize(state));
   }
 
   private void HandleProcessExit()
