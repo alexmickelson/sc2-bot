@@ -13,6 +13,10 @@
   {
     <CreateHostMultiplayerGame Key=@Key />
   }
+  else if(Type == "joiningMultiplayer")
+  {
+    <JoinMultiplayerGame Key=@Key />
+  }
 }
 else if (sc2Client.CurrentStatus == Status.InGame)
 {

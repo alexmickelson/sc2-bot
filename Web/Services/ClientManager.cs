@@ -22,20 +22,7 @@ public class ClientManager : IDisposable
 {
   private readonly Dictionary<string, ClientGroup> _groups = new();
 
-  public ClientManager()
-  {
-    // Initialize player1
-    // var player1Info = new PlayerInfo(1, 5000, 5100);
-    // var ws1 = new WebSocketService();
-    // _groups["player1"] = new ClientGroup
-    // {
-    //   Key = "player1",
-    //   PlayerInfo = player1Info,
-    //   WebSocketService = ws1,
-    //   SC2Client = new SC2Client(ws1, player1Info),
-    //   LinuxHeadlessClientService = new LinuxHeadlessClientService(player1Info),
-    // };
-  }
+  public ClientManager() { }
 
   public ClientGroup GetOrCreateGroup(string key)
   {
@@ -45,7 +32,7 @@ public class ClientManager : IDisposable
     }
 
     var port = GetNextAvailablePort();
-    var player1Info = new WebPlayerInfo(1, port);
+    var player1Info = new WebPlayerInfo(key, port);
     var ws1 = new WebSocketService();
     _groups[key] = new ClientGroup
     {

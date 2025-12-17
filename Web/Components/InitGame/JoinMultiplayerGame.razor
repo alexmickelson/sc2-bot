@@ -1,6 +1,7 @@
 @using SC2APIProtocol
 @using Web.Services
-@inject SC2Client sc2Client
+@using Web.Components.Shared
+@inject ClientManager clientManager
 
 <div class="p-4">
   <div class="mb-3">
@@ -11,10 +12,46 @@
   </div>
 
   <div class="mb-3">
-    <label class="block text-sm font-medium text-gray-300 mb-1">Game Port</label>
+    <label class="block text-sm font-medium text-gray-300 mb-1">Server Game Port</label>
     <input type="number"
       class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-      @bind="gamePort" />
+      @bind="serverGamePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Server Base Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="serverBasePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Client 1 Game Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="client1GamePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Client 1 Base Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="client1BasePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Client 2 Game Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="client2GamePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Client 2 Base Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="client2BasePort" />
+  </div>
+  <div class="mb-3">
+    <label class="block text-sm font-medium text-gray-300 mb-1">Shared Port</label>
+    <input type="number"
+      class="block w-full px-3 py-2 text-base text-gray-50 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      @bind="sharedPort" />
   </div>
 
   <div class="mb-3">
@@ -36,9 +73,17 @@
 
 @code {
   [Parameter] public EventCallback OnGameJoined { get; set; }
+  [Parameter] public string Key { get; set; } = "";
 
+  private SC2Client sc2Client = default!;
   private string hostIp = "127.0.0.1";
-  private int gamePort = 5000;
+  private int serverGamePort = 5011;
+  private int serverBasePort = 5012;
+  private int client1GamePort = 5013;
+  private int client1BasePort = 5014;
+  private int client2GamePort = 5015;
+  private int client2BasePort = 5016;
+  private int sharedPort = 5017;
   private Race myRace = Race.Terran;
   private string errorMessage = "";
   private InterfaceOptions InterfaceOptions = new();
@@ -53,6 +98,9 @@
 
   protected override void OnInitialized()
   {
+    var group = clientManager.GetOrCreateGroup(Key);
+    sc2Client = group.SC2Client;
+
     // Initialize default options
     InterfaceOptions = new InterfaceOptions
     {
@@ -101,19 +149,18 @@
       {
         Race = myRace,
         Options = InterfaceOptions,
-        ServerPorts = new PortSet { GamePort = gamePort, BasePort = gamePort + 1 },
+        ServerPorts = new PortSet { GamePort = serverGamePort, BasePort = serverBasePort },
         ClientPorts = {
-new PortSet { GamePort = gamePort + 2, BasePort = gamePort + 3 },
-new PortSet { GamePort = gamePort + 4, BasePort = gamePort + 5 }
+new PortSet { GamePort = client1GamePort, BasePort = client1BasePort },
+new PortSet { GamePort = client2GamePort, BasePort = client2BasePort }
 },
-        HostIp = hostIp
-      };
-
-      // For multiplayer, we usually need client ports too?
-      // The SC2 protocol documentation says:
-      // server_ports: Do not set in the single-player case.
-      // client_ports: Do not set in the single-player case.
-      // shared_port:
+        HostIp = hostIp,
+        SharedPort = sharedPort
+      }; // For multiplayer, we usually need client ports too?
+         // The SC2 protocol documentation says:
+         // server_ports: Do not set in the single-player case.
+         // client_ports: Do not set in the single-player case.
+         // shared_port:
 
       // If we are joining a game hosted by another client, we need to specify ports.
       // Assuming 2 player game for now.

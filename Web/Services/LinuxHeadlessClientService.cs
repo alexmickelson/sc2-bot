@@ -57,31 +57,49 @@ public class LinuxHeadlessClientService : IDisposable
 
     Port = playerInfo.ClientPort;
 
-    if (playerInfo.PlayerNumber == 2)
+    var safeKey = string.Join("", playerInfo.PlayerKey.Split(Path.GetInvalidFileNameChars()));
+    var stateDir = Path.Combine(_workingDirectory, "clientStateData");
+    if (!Directory.Exists(stateDir))
     {
-      StateFileName = "headlessclient_p2.json";
-      LogFileName = "sc2_headless_p2.log";
-      PidFileName = "sc2_client_p2.pid";
-      TempDir = "/tmp/sc2_temp_p2";
-    }
-    else
-    {
-      StateFileName = "headlessclient.json";
-      LogFileName = "sc2_headless.log";
-      PidFileName = "sc2_client.pid";
+      Directory.CreateDirectory(stateDir);
     }
 
+    StateFileName = Path.Combine(stateDir, $"headlessclient_{safeKey}.json");
+    LogFileName = Path.Combine(stateDir, $"sc2_headless_{safeKey}.log");
+    PidFileName = Path.Combine(stateDir, $"sc2_client_{safeKey}.pid");
+    TempDir = Path.Combine(stateDir, $"sc2_temp_{safeKey}");
+
+    EnsureMapsSymlink();
     RecoverState();
+  }
+
+  private void EnsureMapsSymlink()
+  {
+    try
+    {
+      var mapsLower = Path.Combine(DataDir, "maps");
+      var mapsUpper = Path.Combine(DataDir, "Maps");
+
+      if (Directory.Exists(mapsUpper) && !Directory.Exists(mapsLower))
+      {
+        Directory.CreateSymbolicLink(mapsLower, mapsUpper);
+        Log($"Created symlink: {mapsLower} -> {mapsUpper}");
+      }
+    }
+    catch (Exception ex)
+    {
+      Log($"Error creating maps symlink: {ex.Message}");
+    }
   }
 
   private void RecoverState()
   {
-    var statePath = Path.Combine(_workingDirectory, StateFileName);
-    if (File.Exists(statePath))
+    // StateFileName is now an absolute path
+    if (File.Exists(StateFileName))
     {
       try
       {
-        var json = File.ReadAllText(statePath);
+        var json = File.ReadAllText(StateFileName);
         var state = JsonSerializer.Deserialize<HeadlessClientState>(json);
         if (state != null)
         {
@@ -102,14 +120,14 @@ public class LinuxHeadlessClientService : IDisposable
             else
             {
               Log($"Process {state.Pid} has exited.");
-              File.Delete(statePath);
+              File.Delete(StateFileName);
             }
           }
           catch (ArgumentException)
           {
             // Process not found
             Log($"Process {state.Pid} not found.");
-            File.Delete(statePath);
+            File.Delete(StateFileName);
           }
         }
       }
@@ -127,8 +145,9 @@ public class LinuxHeadlessClientService : IDisposable
 
     try
     {
-      var logPath = Path.Combine(_workingDirectory, LogFileName);
-      var pidFile = Path.Combine(_workingDirectory, PidFileName);
+      // LogFileName and PidFileName are now absolute paths
+      var logPath = LogFileName;
+      var pidFile = PidFileName;
 
       // Clear previous logs
       lock (_logBuffer)
@@ -192,7 +211,7 @@ public class LinuxHeadlessClientService : IDisposable
                 StartTime = DateTime.Now,
               };
               var json = JsonSerializer.Serialize(state);
-              File.WriteAllText(Path.Combine(_workingDirectory, StateFileName), json);
+              File.WriteAllText(StateFileName, json);
 
               StartWatchingLogs(logPath);
               OnStateChanged?.Invoke();
@@ -226,9 +245,8 @@ public class LinuxHeadlessClientService : IDisposable
   private void HandleProcessExit()
   {
     Log("Process exited.");
-    var statePath = Path.Combine(_workingDirectory, StateFileName);
-    if (File.Exists(statePath))
-      File.Delete(statePath);
+    if (File.Exists(StateFileName))
+      File.Delete(StateFileName);
 
     _logWatcherCts?.Cancel();
     OnStateChanged?.Invoke();
@@ -381,6 +399,12 @@ public class LinuxHeadlessClientService : IDisposable
     );
 
     using var p = Process.Start(psi);
+    if (p == null)
+    {
+      Console.WriteLine("could not find libEGL.so");
+      return "";
+    }
+
     string output = p.StandardOutput.ReadToEnd().Trim();
     p.WaitForExit();
     return output;

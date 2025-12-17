@@ -81,7 +81,24 @@
 
     @if (!string.IsNullOrEmpty(statusMessage))
     {
-      <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mt-2">@statusMessage</div>
+      <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mt-2">
+        <p class="font-bold">@statusMessage</p>
+        @if (connectionInfo != null)
+        {
+          <div class="mt-2 text-sm">
+            <p class="font-semibold">Share this with the joining player:</p>
+            <ul class="list-disc list-inside">
+              <li>Server Game Port: @connectionInfo.ServerGamePort</li>
+              <li>Server Base Port: @connectionInfo.ServerBasePort</li>
+              <li>Client 1 Game Port: @connectionInfo.Client1GamePort</li>
+              <li>Client 1 Base Port: @connectionInfo.Client1BasePort</li>
+              <li>Client 2 Game Port: @connectionInfo.Client2GamePort</li>
+              <li>Client 2 Base Port: @connectionInfo.Client2BasePort</li>
+              <li>Shared Port: @connectionInfo.SharedPort</li>
+            </ul>
+          </div>
+        }
+      </div>
     }
 
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -104,6 +121,10 @@
   private bool isLoading = false;
   private string errorMessage = "";
   private string statusMessage = "";
+  private ConnectionInfo? connectionInfo;
+
+  private record ConnectionInfo(int ServerGamePort, int ServerBasePort, int Client1GamePort, int Client1BasePort, int
+  Client2GamePort, int Client2BasePort, int SharedPort);
 
   // Game Settings
   private Race myRace = Race.Terran;
@@ -284,8 +305,12 @@
     var client1BasePort = basePort + 4;
     var client2GamePort = basePort + 5;
     var client2BasePort = basePort + 6;
+    var sharedPort = basePort + 7;
 
-    statusMessage = $"Joining game... Server Ports: {serverGamePort}/{serverBasePort}. Client Ports: {client1GamePort}/{client1BasePort}, {client2GamePort}/{client2BasePort}. Waiting for other players...";
+    connectionInfo = new ConnectionInfo(serverGamePort, serverBasePort, client1GamePort, client1BasePort, client2GamePort,
+    client2BasePort, sharedPort);
+
+    statusMessage = "Joining game... Waiting for other players...";
     StateHasChanged();
 
     var request = new RequestJoinGame
@@ -306,10 +331,9 @@ new PortSet {
 GamePort = client2GamePort,
 BasePort = client2BasePort
 }
-}
-    };
-
-    var response = await sc2Client.SendRequestAsync(new Request { JoinGame = request });
+},
+      SharedPort = sharedPort
+    }; var response = await sc2Client.SendRequestAsync(new Request { JoinGame = request });
     Console.WriteLine($"join game response: {response}");
 
     if (response.Status == Status.InGame)
